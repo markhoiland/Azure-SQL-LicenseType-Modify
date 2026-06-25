@@ -8,9 +8,9 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 
 | Script | Target Resource | Module(s) Required |
 |--------|----------------|--------------------|
-| `Set-SqlDbLicenseType.ps1` | Azure SQL Database | `Az.Accounts`, `Az.Sql` |
-| `Set-SqlMILicenseType.ps1` | Azure SQL Managed Instance | `Az.Accounts`, `Az.Sql` |
-| `Set-SqlVMLicenseType.ps1` | SQL Server on Azure VMs | `Az.Accounts`, `Az.SqlVirtualMachine` |
+| `Set-AzSqlDbLicenseType.ps1` | Azure SQL Database | `Az.Accounts`, `Az.Sql` |
+| `Set-AzSqlMILicenseType.ps1` | Azure SQL Managed Instance | `Az.Accounts`, `Az.Sql` |
+| `Set-AzSqlVMLicenseType.ps1` | SQL Server on Azure VMs | `Az.Accounts`, `Az.SqlVirtualMachine` |
 | `Set-ArcSqlLicenseType.ps1` | Azure Arc-enabled SQL Server | `Az.Accounts`, `Az.ConnectedMachine`, `Az.ResourceGraph` |
 
 ---
@@ -62,7 +62,7 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 
 ---
 
-## Set-SqlDbLicenseType.ps1 – Azure SQL Database
+## Set-AzSqlDbLicenseType.ps1 – Azure SQL Database
 
 ### Common Parameters
 
@@ -84,24 +84,24 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 
 ```powershell
 # Report which databases would be converted from AHB to PAYG (no changes)
-.\Set-SqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
+.\Set-AzSqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
 
 # Disable AHB (convert to PAYG) on all databases in a subscription
-.\Set-SqlDbLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+.\Set-AzSqlDbLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 
 # Set all databases in a resource group to LicenseIncluded
-.\Set-SqlDbLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg>" -LicenseType LicenseIncluded -Force
+.\Set-AzSqlDbLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg>" -LicenseType LicenseIncluded -Force
 
 # Exclude databases tagged Environment=Dev
-.\Set-SqlDbLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force -ExclusionTags '{"Environment":"Dev"}'
+.\Set-AzSqlDbLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force -ExclusionTags '{"Environment":"Dev"}'
 
 # Process subscriptions from a CSV file using managed identity
-.\Set-SqlDbLicenseType.ps1 -SubId "subscriptions.csv" -DisableAHUB -Force -UseManagedIdentity
+.\Set-AzSqlDbLicenseType.ps1 -SubId "subscriptions.csv" -DisableAHUB -Force -UseManagedIdentity
 ```
 
 ---
 
-## Set-SqlMILicenseType.ps1 – Azure SQL Managed Instance
+## Set-AzSqlMILicenseType.ps1 – Azure SQL Managed Instance
 
 ### Common Parameters
 
@@ -122,18 +122,18 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 
 ```powershell
 # Report which managed instances would be converted from AHB to PAYG
-.\Set-SqlMILicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
+.\Set-AzSqlMILicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
 
 # Disable AHB on all managed instances in a subscription
-.\Set-SqlMILicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+.\Set-AzSqlMILicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 
 # Set a specific managed instance to LicenseIncluded
-.\Set-SqlMILicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg>" -InstanceName "<mi_name>" -DisableAHUB -Force
+.\Set-AzSqlMILicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg>" -InstanceName "<mi_name>" -DisableAHUB -Force
 ```
 
 ---
 
-## Set-SqlVMLicenseType.ps1 – SQL Server on Azure VMs
+## Set-AzSqlVMLicenseType.ps1 – SQL Server on Azure VMs
 
 ### Common Parameters
 
@@ -159,13 +159,13 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 
 ```powershell
 # Report which SQL VMs would be converted from AHUB to PAYG
-.\Set-SqlVMLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
+.\Set-AzSqlVMLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
 
 # Disable AHUB on all SQL VMs in a subscription
-.\Set-SqlVMLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+.\Set-AzSqlVMLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 
 # Set all SQL VMs in a resource group to PAYG
-.\Set-SqlVMLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg>" -LicenseType PAYG -Force
+.\Set-AzSqlVMLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg>" -LicenseType PAYG -Force
 ```
 
 ---
@@ -253,6 +253,6 @@ Azure Cloud Shell has the Az module pre-installed and authentication is automati
 2. Upload your script or download it directly:
    ```powershell
    # Clone or download the script
-   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/PowerShell/Set-SqlDbLicenseType.ps1" -OutFile "Set-SqlDbLicenseType.ps1"
+   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/PowerShell/Set-AzSqlDbLicenseType.ps1" -OutFile "Set-AzSqlDbLicenseType.ps1"
    ```
 3. Run the script with the appropriate parameters.

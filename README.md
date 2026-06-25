@@ -20,15 +20,15 @@ All scripts support scanning a single subscription, a list of subscriptions, or 
 Azure-SQL-LicenseType-Modify/
 ├── PowerShell/
 │   ├── README.md                    # PowerShell-specific documentation
-│   ├── Set-SqlDbLicenseType.ps1     # Azure SQL Database
-│   ├── Set-SqlMILicenseType.ps1     # Azure SQL Managed Instance
-│   ├── Set-SqlVMLicenseType.ps1     # SQL Server on Azure VMs
+│   ├── Set-AzSqlDbLicenseType.ps1     # Azure SQL Database
+│   ├── Set-AzSqlMILicenseType.ps1     # Azure SQL Managed Instance
+│   ├── Set-AzSqlVMLicenseType.ps1     # SQL Server on Azure VMs
 │   └── Set-ArcSqlLicenseType.ps1   # Azure Arc-enabled SQL Server
 └── AzureCLI/
     ├── README.md                    # Azure CLI-specific documentation
-    ├── set-sql-db-license-type.sh   # Azure SQL Database
-    ├── set-sql-mi-license-type.sh   # Azure SQL Managed Instance
-    ├── set-sql-vm-license-type.sh   # SQL Server on Azure VMs
+    ├── set-az-sql-db-license-type.sh   # Azure SQL Database
+    ├── set-az-sql-mi-license-type.sh   # Azure SQL Managed Instance
+    ├── set-az-sql-vm-license-type.sh   # SQL Server on Azure VMs
     └── set-arc-sql-license-type.sh  # Azure Arc-enabled SQL Server
 ```
 
@@ -38,9 +38,9 @@ Azure-SQL-LicenseType-Modify/
 
 | Resource Type | PowerShell Script | Azure CLI Script |
 |---------------|------------------|-----------------|
-| Azure SQL Database | `Set-SqlDbLicenseType.ps1` | `set-sql-db-license-type.sh` |
-| Azure SQL Managed Instance | `Set-SqlMILicenseType.ps1` | `set-sql-mi-license-type.sh` |
-| SQL Server on Azure VMs | `Set-SqlVMLicenseType.ps1` | `set-sql-vm-license-type.sh` |
+| Azure SQL Database | `Set-AzSqlDbLicenseType.ps1` | `set-az-sql-db-license-type.sh` |
+| Azure SQL Managed Instance | `Set-AzSqlMILicenseType.ps1` | `set-az-sql-mi-license-type.sh` |
+| SQL Server on Azure VMs | `Set-AzSqlVMLicenseType.ps1` | `set-az-sql-vm-license-type.sh` |
 | Azure Arc-enabled SQL Server | `Set-ArcSqlLicenseType.ps1` | `set-arc-sql-license-type.sh` |
 
 ---
@@ -119,32 +119,32 @@ Azure-SQL-LicenseType-Modify/
 
 ```powershell
 # Step 1 – Report what would change (no modifications)
-.\PowerShell\Set-SqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
+.\PowerShell\Set-AzSqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
 
 # Step 2 – Apply the change
-.\PowerShell\Set-SqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -Force
+.\PowerShell\Set-AzSqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -Force
 ```
 
 ### Disable AHB on All Azure SQL Databases (Azure CLI)
 
 ```bash
 # Step 1 – Report what would change
-./AzureCLI/set-sql-db-license-type.sh --disable-ahub --report-only
+./AzureCLI/set-az-sql-db-license-type.sh --disable-ahub --report-only
 
 # Step 2 – Apply the change
-./AzureCLI/set-sql-db-license-type.sh --disable-ahub --force
+./AzureCLI/set-az-sql-db-license-type.sh --disable-ahub --force
 ```
 
 ### Disable AHB on All SQL Managed Instances (PowerShell)
 
 ```powershell
-.\PowerShell\Set-SqlMILicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+.\PowerShell\Set-AzSqlMILicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 ```
 
 ### Disable AHUB on All SQL Server VMs (PowerShell)
 
 ```powershell
-.\PowerShell\Set-SqlVMLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+.\PowerShell\Set-AzSqlVMLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 ```
 
 ### Convert Arc-enabled SQL Servers to PAYG (PowerShell)
@@ -193,15 +193,15 @@ Each script run produces:
 **PowerShell:**
 ```powershell
 # Download and run
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/PowerShell/Set-SqlDbLicenseType.ps1" -OutFile "Set-SqlDbLicenseType.ps1"
-.\Set-SqlDbLicenseType.ps1 -DisableAHUB -ReportOnly
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/PowerShell/Set-AzSqlDbLicenseType.ps1" -OutFile "Set-AzSqlDbLicenseType.ps1"
+.\Set-AzSqlDbLicenseType.ps1 -DisableAHUB -ReportOnly
 ```
 
 **Bash/CLI:**
 ```bash
-curl -O https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/AzureCLI/set-sql-db-license-type.sh
-chmod +x set-sql-db-license-type.sh
-./set-sql-db-license-type.sh --disable-ahub --report-only
+curl -O https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/AzureCLI/set-az-sql-db-license-type.sh
+chmod +x set-az-sql-db-license-type.sh
+./set-az-sql-db-license-type.sh --disable-ahub --report-only
 ```
 
 ---

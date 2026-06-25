@@ -1,36 +1,35 @@
 #!/usr/bin/env bash
 # =============================================================================
-# set-sql-db-license-type.sh
+# set-az-sql-mi-license-type.sh
 #
 # SYNOPSIS:
-#   Modifies the license type for Azure SQL Databases across one or more
-#   subscriptions using Azure CLI.
+#   Modifies the license type for Azure SQL Managed Instances across one or
+#   more subscriptions using Azure CLI.
 #
 # DESCRIPTION:
-#   Scans Azure SQL Databases in the specified scope and converts them from
-#   Azure Hybrid Benefit (BasePrice) to Pay-as-you-go (LicenseIncluded), or
-#   sets any supported license type. Supports filtering by subscription,
-#   resource group, server, or database name, and can exclude resources by tags.
+#   Scans Azure SQL Managed Instances in the specified scope and converts them
+#   from Azure Hybrid Benefit (BasePrice) to Pay-as-you-go (LicenseIncluded),
+#   or sets any supported license type. Supports filtering by subscription,
+#   resource group, or instance name.
 #
-#   License type values for Azure SQL Database:
+#   License type values for Azure SQL Managed Instance:
 #     LicenseIncluded  - Pay-as-you-go (PAYG)
 #     BasePrice        - Azure Hybrid Benefit (AHB/BYOL)
 #
 # PREREQUISITES:
 #   - Azure CLI >= 2.50.0  (az --version)
 #   - Logged in to Azure  (az login) or running with managed identity
-#   - Required role: SQL Server Contributor (or Contributor)
+#   - Required role: SQL Managed Instance Contributor (or Contributor)
 #
 # USAGE:
-#   ./set-sql-db-license-type.sh [OPTIONS]
+#   ./set-az-sql-mi-license-type.sh [OPTIONS]
 #
 # OPTIONS:
 #   -s, --subscription-id   <id|file>   Subscription ID or path to a file with
 #                                       one subscription ID per line. If omitted,
 #                                       all accessible subscriptions are scanned.
 #   -g, --resource-group    <name>      Limit scope to a specific resource group.
-#   -n, --server-name       <name>      Limit scope to a specific SQL server.
-#   -d, --database-name     <name>      Limit scope to a specific database.
+#   -i, --instance-name     <name>      Limit scope to a specific managed instance.
 #   -l, --license-type      <type>      Target license type: LicenseIncluded|BasePrice.
 #       --disable-ahub                  Shorthand: set LicenseType=LicenseIncluded and --force.
 #   -f, --force                         Update all resources, not just those that differ.
@@ -39,18 +38,19 @@
 #   -h, --help                          Show this help message.
 #
 # EXAMPLES:
-#   # Report which databases would be converted from AHB to PAYG
-#   ./set-sql-db-license-type.sh --disable-ahub --report-only
+#   # Report which managed instances would be converted from AHB to PAYG
+#   ./set-az-sql-mi-license-type.sh --disable-ahub --report-only
 #
-#   # Disable AHB on all databases in a specific subscription
-#   ./set-sql-db-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
+#   # Disable AHB on all managed instances in a specific subscription
+#   ./set-az-sql-mi-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
 #
-#   # Set a specific resource group to LicenseIncluded
-#   ./set-sql-db-license-type.sh --subscription-id "<sub_id>" \
+#   # Set all managed instances in a resource group to LicenseIncluded
+#   ./set-az-sql-mi-license-type.sh --subscription-id "<sub_id>" \
 #     --resource-group "<rg>" --license-type LicenseIncluded --force
 #
-#   # Use a file with multiple subscription IDs
-#   ./set-sql-db-license-type.sh --subscription-id subscriptions.txt --disable-ahub --force
+#   # Disable AHB on a specific managed instance
+#   ./set-az-sql-mi-license-type.sh --subscription-id "<sub_id>" \
+#     --resource-group "<rg>" --instance-name "<mi_name>" --disable-ahub --force
 # =============================================================================
 
 set -euo pipefail
@@ -60,15 +60,14 @@ set -euo pipefail
 # --------------------------------------------------------------------------- #
 SUBSCRIPTION_ID=""
 RESOURCE_GROUP=""
-SERVER_NAME=""
-DATABASE_NAME=""
+INSTANCE_NAME=""
 LICENSE_TYPE=""
 TENANT_ID=""
 FORCE=false
 REPORT_ONLY=false
 DISABLE_AHUB=false
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-REPORT_FILE="SqlDb_LicenseChange_${TIMESTAMP}.csv"
+REPORT_FILE="SqlMI_LicenseChange_${TIMESTAMP}.csv"
 
 # --------------------------------------------------------------------------- #
 # Help
@@ -85,8 +84,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -s|--subscription-id)   SUBSCRIPTION_ID="$2"; shift 2 ;;
         -g|--resource-group)    RESOURCE_GROUP="$2";  shift 2 ;;
-        -n|--server-name)       SERVER_NAME="$2";     shift 2 ;;
-        -d|--database-name)     DATABASE_NAME="$2";   shift 2 ;;
+        -i|--instance-name)     INSTANCE_NAME="$2";   shift 2 ;;
         -l|--license-type)      LICENSE_TYPE="$2";    shift 2 ;;
            --disable-ahub)      DISABLE_AHUB=true;    shift   ;;
         -f|--force)             FORCE=true;           shift   ;;
@@ -146,7 +144,6 @@ declare -a SUBSCRIPTIONS=()
 
 if [[ -n "$SUBSCRIPTION_ID" ]]; then
     if [[ -f "$SUBSCRIPTION_ID" ]]; then
-        # File with one subscription ID per line (skip blank lines and comments)
         while IFS= read -r line; do
             line="${line//[$'\t\r\n']}"
             [[ -z "$line" || "$line" =~ ^# ]] && continue
@@ -164,74 +161,10 @@ fi
 # --------------------------------------------------------------------------- #
 # CSV report header
 # --------------------------------------------------------------------------- #
-echo "SubscriptionId,ResourceGroup,ServerName,DatabaseName,CurrentLicenseType,TargetLicenseType,Edition,Location,Action" \
+echo "SubscriptionId,ResourceGroup,InstanceName,CurrentLicenseType,TargetLicenseType,SKU,Location,Action" \
     > "$REPORT_FILE"
 
 TOTAL_MODIFIED=0
-
-# --------------------------------------------------------------------------- #
-# Helper: process databases on a server
-# --------------------------------------------------------------------------- #
-process_databases() {
-    local sub_id="$1"
-    local server="$2"
-    local rg="$3"
-
-    local db_query_args=("--server" "$server" "--resource-group" "$rg")
-    [[ -n "$DATABASE_NAME" ]] && db_query_args+=("--name" "$DATABASE_NAME")
-
-    local db_list
-    db_list=$(az sql db list "${db_query_args[@]}" \
-        --query "[?name!='master'].{name:name,licenseType:licenseType,edition:edition,location:location,rg:resourceGroup}" \
-        -o json 2>/dev/null) || return 0
-
-    local db_count
-    db_count=$(echo "$db_list" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
-
-    for ((i=0; i<db_count; i++)); do
-        local db_name current_license edition location
-        db_name=$(echo "$db_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i]['name'])")
-        current_license=$(echo "$db_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('licenseType') or '')")
-        edition=$(echo "$db_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('edition') or '')")
-        location=$(echo "$db_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('location') or '')")
-
-        local needs_update=false
-        if $FORCE; then
-            needs_update=true
-        elif [[ "$current_license" != "$LICENSE_TYPE" ]]; then
-            needs_update=true
-        fi
-
-        local action="NoChange"
-        if $needs_update; then
-            action="Modify"
-            TOTAL_MODIFIED=$((TOTAL_MODIFIED + 1))
-            if $REPORT_ONLY; then
-                echo "  [ReportOnly] Would modify: $server/$db_name [$current_license -> $LICENSE_TYPE]"
-                action="WouldModify"
-            else
-                echo "  Modifying: $server/$db_name [$current_license -> $LICENSE_TYPE]"
-                if az sql db update \
-                    --server "$server" \
-                    --resource-group "$rg" \
-                    --name "$db_name" \
-                    --set licenseType="$LICENSE_TYPE" \
-                    --output none 2>/dev/null; then
-                    echo "    Updated successfully."
-                    action="Modified"
-                else
-                    echo "    [WARNING] Failed to update $db_name" >&2
-                    action="Failed"
-                fi
-            fi
-        else
-            echo "  NO CHANGE: $server/$db_name (already $current_license)"
-        fi
-
-        echo "${sub_id},${rg},${server},${db_name},${current_license},${LICENSE_TYPE},${edition},${location},${action}" \
-            >> "$REPORT_FILE"
-    done
-}
 
 # --------------------------------------------------------------------------- #
 # Main loop
@@ -244,27 +177,69 @@ for sub in "${SUBSCRIPTIONS[@]}"; do
         continue
     }
 
-    # Enumerate SQL servers
-    servers_args=()
-    [[ -n "$RESOURCE_GROUP" ]] && servers_args+=("--resource-group" "$RESOURCE_GROUP")
+    # Enumerate managed instances
+    mi_args=()
+    [[ -n "$RESOURCE_GROUP" ]] && mi_args+=("--resource-group" "$RESOURCE_GROUP")
+    [[ -n "$INSTANCE_NAME" ]] && mi_args+=("--name" "$INSTANCE_NAME" "--resource-group" "$RESOURCE_GROUP")
 
-    server_list=$(az sql server list "${servers_args[@]}" \
-        --query "[].{name:name,rg:resourceGroup}" -o json 2>/dev/null) || continue
+    if [[ -n "$INSTANCE_NAME" && -n "$RESOURCE_GROUP" ]]; then
+        mi_list=$(az sql mi show --name "$INSTANCE_NAME" --resource-group "$RESOURCE_GROUP" \
+            --query "[{name:name,licenseType:licenseType,sku:sku.name,location:location,rg:resourceGroup}]" \
+            -o json 2>/dev/null) || { echo "  [WARNING] Could not retrieve instance $INSTANCE_NAME"; continue; }
+    elif [[ -n "$RESOURCE_GROUP" ]]; then
+        mi_list=$(az sql mi list --resource-group "$RESOURCE_GROUP" \
+            --query "[].{name:name,licenseType:licenseType,sku:sku.name,location:location,rg:resourceGroup}" \
+            -o json 2>/dev/null) || { echo "  [WARNING] Could not list instances in RG $RESOURCE_GROUP"; continue; }
+    else
+        mi_list=$(az sql mi list \
+            --query "[].{name:name,licenseType:licenseType,sku:sku.name,location:location,rg:resourceGroup}" \
+            -o json 2>/dev/null) || { echo "  [WARNING] Could not list managed instances"; continue; }
+    fi
 
-    server_count=$(echo "$server_list" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
-    echo "  Found $server_count SQL server(s)."
+    mi_count=$(echo "$mi_list" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+    echo "  Found $mi_count managed instance(s)."
 
-    for ((si=0; si<server_count; si++)); do
-        srv=$(echo "$server_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$si]['name'])")
-        srv_rg=$(echo "$server_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$si]['rg'])")
-        echo ""
-        echo "  Server: $srv (RG: $srv_rg)"
+    for ((i=0; i<mi_count; i++)); do
+        mi_name=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i]['name'])")
+        current_license=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('licenseType') or '')")
+        sku=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('sku') or '')")
+        location=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('location') or '')")
+        rg=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('rg') or '')")
 
-        if [[ -n "$SERVER_NAME" && "$srv" != "$SERVER_NAME" ]]; then
-            continue
+        needs_update=false
+        if $FORCE; then
+            needs_update=true
+        elif [[ "$current_license" != "$LICENSE_TYPE" ]]; then
+            needs_update=true
         fi
 
-        process_databases "$sub" "$srv" "$srv_rg"
+        action="NoChange"
+        if $needs_update; then
+            action="Modify"
+            TOTAL_MODIFIED=$((TOTAL_MODIFIED + 1))
+            if $REPORT_ONLY; then
+                echo "  [ReportOnly] Would modify: $mi_name [$current_license -> $LICENSE_TYPE]"
+                action="WouldModify"
+            else
+                echo "  Modifying: $mi_name [$current_license -> $LICENSE_TYPE]"
+                if az sql mi update \
+                    --name "$mi_name" \
+                    --resource-group "$rg" \
+                    --license-type "$LICENSE_TYPE" \
+                    --output none 2>/dev/null; then
+                    echo "    Updated successfully."
+                    action="Modified"
+                else
+                    echo "    [WARNING] Failed to update $mi_name" >&2
+                    action="Failed"
+                fi
+            fi
+        else
+            echo "  NO CHANGE: $mi_name (already $current_license)"
+        fi
+
+        echo "${sub},${rg},${mi_name},${current_license},${LICENSE_TYPE},${sku},${location},${action}" \
+            >> "$REPORT_FILE"
     done
 done
 
@@ -274,6 +249,6 @@ done
 echo ""
 echo "============================================"
 echo "Report saved to: $REPORT_FILE"
-echo "Total databases targeted for modification: $TOTAL_MODIFIED"
+echo "Total managed instances targeted for modification: $TOTAL_MODIFIED"
 echo "Completed at: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "============================================"

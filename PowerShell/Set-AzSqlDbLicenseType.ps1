@@ -59,23 +59,23 @@
 
 .EXAMPLE
     # Report which databases would be converted from AHB to PAYG across all subscriptions
-    .\Set-SqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
+    .\Set-AzSqlDbLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
 
 .EXAMPLE
     # Disable AHB on all databases in a specific subscription
-    .\Set-SqlDbLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+    .\Set-AzSqlDbLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 
 .EXAMPLE
     # Set all databases in a resource group to LicenseIncluded (PAYG)
-    .\Set-SqlDbLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg_name>" -LicenseType LicenseIncluded -Force
+    .\Set-AzSqlDbLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg_name>" -LicenseType LicenseIncluded -Force
 
 .EXAMPLE
     # Disable AHB on a specific server's databases, excluding Dev-tagged resources
-    .\Set-SqlDbLicenseType.ps1 -SubId "<sub_id>" -ServerName "<server_name>" -DisableAHUB -Force -ExclusionTags '{"Environment":"Dev"}'
+    .\Set-AzSqlDbLicenseType.ps1 -SubId "<sub_id>" -ServerName "<server_name>" -DisableAHUB -Force -ExclusionTags '{"Environment":"Dev"}'
 
 .EXAMPLE
     # Process a list of subscriptions from a CSV file using managed identity
-    .\Set-SqlDbLicenseType.ps1 -SubId "subscriptions.csv" -DisableAHUB -Force -UseManagedIdentity
+    .\Set-AzSqlDbLicenseType.ps1 -SubId "subscriptions.csv" -DisableAHUB -Force -UseManagedIdentity
 
 .NOTES
     Required PowerShell Modules: Az.Accounts, Az.Sql
@@ -128,7 +128,7 @@ param (
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Start-Transcript -Path ".\Set-SqlDbLicenseType.log" -Append
+Start-Transcript -Path ".\Set-AzSqlDbLicenseType.log" -Append
 $scriptStartTime = Get-Date
 Write-Output "Script execution started at: $($scriptStartTime.ToString('yyyy-MM-dd HH:mm:ss'))"
 

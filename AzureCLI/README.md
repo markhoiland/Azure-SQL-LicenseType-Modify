@@ -8,9 +8,9 @@ This folder contains Bash scripts that use **Azure CLI** (`az`) to modify the SQ
 
 | Script | Target Resource | Azure CLI Commands Used |
 |--------|----------------|------------------------|
-| `set-sql-db-license-type.sh` | Azure SQL Database | `az sql db`, `az sql server` |
-| `set-sql-mi-license-type.sh` | Azure SQL Managed Instance | `az sql mi` |
-| `set-sql-vm-license-type.sh` | SQL Server on Azure VMs | `az sql vm` |
+| `set-az-sql-db-license-type.sh` | Azure SQL Database | `az sql db`, `az sql server` |
+| `set-az-sql-mi-license-type.sh` | Azure SQL Managed Instance | `az sql mi` |
+| `set-az-sql-vm-license-type.sh` | SQL Server on Azure VMs | `az sql vm` |
 | `set-arc-sql-license-type.sh` | Azure Arc-enabled SQL Server | `az connectedmachine`, `az graph` |
 
 ---
@@ -39,9 +39,9 @@ This folder contains Bash scripts that use **Azure CLI** (`az`) to modify the SQ
 ## Making Scripts Executable
 
 ```bash
-chmod +x set-sql-db-license-type.sh
-chmod +x set-sql-mi-license-type.sh
-chmod +x set-sql-vm-license-type.sh
+chmod +x set-az-sql-db-license-type.sh
+chmod +x set-az-sql-mi-license-type.sh
+chmod +x set-az-sql-vm-license-type.sh
 chmod +x set-arc-sql-license-type.sh
 ```
 
@@ -74,7 +74,7 @@ chmod +x set-arc-sql-license-type.sh
 
 ---
 
-## set-sql-db-license-type.sh – Azure SQL Database
+## set-az-sql-db-license-type.sh – Azure SQL Database
 
 ### Options
 
@@ -95,26 +95,26 @@ chmod +x set-arc-sql-license-type.sh
 
 ```bash
 # Report which databases would be converted from AHB to PAYG (no changes)
-./set-sql-db-license-type.sh --disable-ahub --report-only
+./set-az-sql-db-license-type.sh --disable-ahub --report-only
 
 # Disable AHB on all databases in a subscription
-./set-sql-db-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
+./set-az-sql-db-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
 
 # Set all databases in a resource group to LicenseIncluded (PAYG)
-./set-sql-db-license-type.sh --subscription-id "<sub_id>" \
+./set-az-sql-db-license-type.sh --subscription-id "<sub_id>" \
   --resource-group "<rg>" --license-type LicenseIncluded --force
 
 # Limit to a specific server
-./set-sql-db-license-type.sh --subscription-id "<sub_id>" \
+./set-az-sql-db-license-type.sh --subscription-id "<sub_id>" \
   --server-name "<server>" --disable-ahub --force
 
 # Use a file listing multiple subscription IDs
-./set-sql-db-license-type.sh --subscription-id subscriptions.txt --disable-ahub --force
+./set-az-sql-db-license-type.sh --subscription-id subscriptions.txt --disable-ahub --force
 ```
 
 ---
 
-## set-sql-mi-license-type.sh – Azure SQL Managed Instance
+## set-az-sql-mi-license-type.sh – Azure SQL Managed Instance
 
 ### Options
 
@@ -134,23 +134,23 @@ chmod +x set-arc-sql-license-type.sh
 
 ```bash
 # Report which managed instances would be converted from AHB to PAYG
-./set-sql-mi-license-type.sh --disable-ahub --report-only
+./set-az-sql-mi-license-type.sh --disable-ahub --report-only
 
 # Disable AHB on all managed instances in a subscription
-./set-sql-mi-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
+./set-az-sql-mi-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
 
 # Set all managed instances in a resource group to PAYG
-./set-sql-mi-license-type.sh --subscription-id "<sub_id>" \
+./set-az-sql-mi-license-type.sh --subscription-id "<sub_id>" \
   --resource-group "<rg>" --license-type LicenseIncluded --force
 
 # Target a specific managed instance
-./set-sql-mi-license-type.sh --subscription-id "<sub_id>" \
+./set-az-sql-mi-license-type.sh --subscription-id "<sub_id>" \
   --resource-group "<rg>" --instance-name "<mi_name>" --disable-ahub --force
 ```
 
 ---
 
-## set-sql-vm-license-type.sh – SQL Server on Azure VMs
+## set-az-sql-vm-license-type.sh – SQL Server on Azure VMs
 
 ### Options
 
@@ -172,17 +172,17 @@ chmod +x set-arc-sql-license-type.sh
 
 ```bash
 # Report which SQL VMs would be converted from AHUB to PAYG
-./set-sql-vm-license-type.sh --disable-ahub --report-only
+./set-az-sql-vm-license-type.sh --disable-ahub --report-only
 
 # Disable AHUB on all SQL VMs in a subscription
-./set-sql-vm-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
+./set-az-sql-vm-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
 
 # Set all SQL VMs in a resource group to PAYG
-./set-sql-vm-license-type.sh --subscription-id "<sub_id>" \
+./set-az-sql-vm-license-type.sh --subscription-id "<sub_id>" \
   --resource-group "<rg>" --license-type PAYG --force
 
 # Target a specific SQL VM
-./set-sql-vm-license-type.sh --subscription-id "<sub_id>" \
+./set-az-sql-vm-license-type.sh --subscription-id "<sub_id>" \
   --resource-group "<rg>" --vm-name "<vm_name>" --disable-ahub --force
 ```
 
@@ -266,7 +266,7 @@ Azure Cloud Shell has the Azure CLI pre-installed and authentication is automati
 1. Open [Cloud Shell](https://shell.azure.com/) (Bash mode)
 2. Upload your script or download it:
    ```bash
-   curl -O https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/AzureCLI/set-sql-db-license-type.sh
-   chmod +x set-sql-db-license-type.sh
+   curl -O https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/AzureCLI/set-az-sql-db-license-type.sh
+   chmod +x set-az-sql-db-license-type.sh
    ```
 3. Run the script with the appropriate options.

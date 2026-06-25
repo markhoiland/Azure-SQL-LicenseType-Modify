@@ -1,21 +1,16 @@
 <#
 .SYNOPSIS
-    Modifies the SQL Server license type for SQL Server on Azure Virtual Machines across
-    one or more subscriptions.
+    Modifies the license type for Azure SQL Managed Instances across one or more subscriptions.
 
 .DESCRIPTION
-    This script scans SQL Server VMs (resources of type Microsoft.SqlVirtualMachine/SqlVirtualMachines)
-    in the specified scope and converts them from Azure Hybrid Benefit (AHUB) or Paid to
-    Pay-as-you-go (PAYG), or sets any supported license type. It supports filtering by
-    subscription, resource group, or VM name, and can exclude resources by tags.
+    This script scans Azure SQL Managed Instances in the specified scope and converts them from
+    Azure Hybrid Benefit (BasePrice) to Pay-as-you-go (LicenseIncluded), or sets any supported
+    license type. It supports filtering by subscription, resource group, or instance name, and
+    can exclude resources by tags.
 
-    License type values for SQL Server on Azure VMs:
-      PAYG   - Pay-as-you-go. SQL Server license cost is included in the VM billing.
-      AHUB   - Azure Hybrid Benefit. Use your on-premises SQL Server license (SA required).
-      DR     - Disaster Recovery replica. Free license for passive DR replicas.
-
-    Note: The VM must be registered with the SQL IaaS Agent Extension (at least Lightweight
-    mode) to appear as a SqlVirtualMachine resource. VMs not registered will not be returned.
+    License type values for Azure SQL Managed Instance:
+      LicenseIncluded  - Pay-as-you-go (PAYG). You pay for SQL Server license + compute.
+      BasePrice        - Azure Hybrid Benefit (AHB). You bring your own SQL Server license.
 
 .PARAMETER SubId
     Optional. A single subscription ID or the path to a CSV file containing a list of
@@ -25,22 +20,22 @@
 .PARAMETER ResourceGroup
     Optional. Limits the scope to a specific resource group name.
 
-.PARAMETER VMName
-    Optional. Limits the scope to a specific SQL VM name. Requires -ResourceGroup when specified.
+.PARAMETER InstanceName
+    Optional. Limits the scope to a specific SQL Managed Instance name.
 
 .PARAMETER LicenseType
-    Optional. The target license type to set. Allowed values: "PAYG", "AHUB", "DR".
-    If -DisableAHUB is specified, this is overridden to "PAYG".
+    Optional. The target license type to set. Allowed values: "LicenseIncluded", "BasePrice".
+    If -DisableAHUB is also specified, this is overridden to "LicenseIncluded".
 
 .PARAMETER DisableAHUB
-    Optional switch. When specified, the script finds all SQL VMs with Azure Hybrid Benefit
-    (AHUB) enabled and converts them to Pay-as-you-go (PAYG).
-    Equivalent to specifying -LicenseType PAYG -Force.
+    Optional switch. When specified, the script finds all managed instances with Azure Hybrid
+    Benefit (BasePrice) enabled and converts them to Pay-as-you-go (LicenseIncluded).
+    Equivalent to specifying -LicenseType LicenseIncluded -Force.
 
 .PARAMETER Force
-    Optional switch. When specified, the license type is updated on all SQL VMs regardless
-    of their current setting. Without -Force, only VMs that currently differ from the target
-    license type are modified.
+    Optional switch. When specified, the license type is updated on all managed instances
+    regardless of their current setting. Without -Force, only instances that currently differ
+    from the target license type are modified.
 
 .PARAMETER ExclusionTags
     Optional. A JSON string of tags used to exclude resources from modification.
@@ -52,42 +47,42 @@
     the current login context tenant is used.
 
 .PARAMETER ReportOnly
-    Optional switch. When specified, the script generates a CSV report of SQL VMs that would
-    be modified, but does NOT make any changes.
+    Optional switch. When specified, the script generates a CSV report of instances that
+    would be modified, but does NOT make any changes.
 
 .PARAMETER UseManagedIdentity
     Optional switch. When specified, authenticates using a managed identity. Required when
     running as an Azure Automation runbook or from an Azure resource with a managed identity.
 
 .EXAMPLE
-    # Report which SQL VMs would be converted from AHUB to PAYG across all subscriptions
-    .\Set-SqlVMLicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
+    # Report which managed instances would be converted from AHB to PAYG across all subscriptions
+    .\Set-AzSqlMILicenseType.ps1 -TenantId "<tenant_id>" -DisableAHUB -ReportOnly
 
 .EXAMPLE
-    # Disable AHUB on all SQL VMs in a specific subscription
-    .\Set-SqlVMLicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
+    # Disable AHB on all managed instances in a specific subscription
+    .\Set-AzSqlMILicenseType.ps1 -SubId "<sub_id>" -DisableAHUB -Force
 
 .EXAMPLE
-    # Set all SQL VMs in a resource group to PAYG
-    .\Set-SqlVMLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg_name>" -LicenseType PAYG -Force
+    # Set all managed instances in a resource group to LicenseIncluded (PAYG)
+    .\Set-AzSqlMILicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg_name>" -LicenseType LicenseIncluded -Force
 
 .EXAMPLE
-    # Disable AHUB on a specific VM, excluding Dev-tagged resources
-    .\Set-SqlVMLicenseType.ps1 -SubId "<sub_id>" -ResourceGroup "<rg_name>" -VMName "<vm_name>" -DisableAHUB -Force -ExclusionTags '{"Environment":"Dev"}'
+    # Disable AHB on a specific instance, excluding Dev-tagged resources
+    .\Set-AzSqlMILicenseType.ps1 -SubId "<sub_id>" -InstanceName "<mi_name>" -ResourceGroup "<rg_name>" -DisableAHUB -Force -ExclusionTags '{"Environment":"Dev"}'
 
 .EXAMPLE
     # Process a list of subscriptions from a CSV file using managed identity
-    .\Set-SqlVMLicenseType.ps1 -SubId "subscriptions.csv" -DisableAHUB -Force -UseManagedIdentity
+    .\Set-AzSqlMILicenseType.ps1 -SubId "subscriptions.csv" -DisableAHUB -Force -UseManagedIdentity
 
 .NOTES
-    Required PowerShell Modules: Az.Accounts, Az.SqlVirtualMachine
-    Required RBAC Role: SQL Virtual Machine Contributor (or Contributor) on each subscription/resource group modified.
-
-    Only SQL VMs registered with the SQL IaaS Agent Extension are visible. To register all
-    VMs in a subscription with the extension, run:
-      Register-AzSqlVMWithSqlIaasExtension -SubscriptionId "<sub_id>"
+    Required PowerShell Modules: Az.Accounts, Az.Sql
+    Required RBAC Role: SQL Managed Instance Contributor (or Contributor) on each subscription/resource group modified.
 
     The CSV file for -SubId must contain a column named "SubscriptionId".
+    Example subscriptions.csv:
+      SubscriptionId
+      xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -99,10 +94,10 @@ param (
     [string] $ResourceGroup,
 
     [Parameter(Mandatory = $false)]
-    [string] $VMName,
+    [string] $InstanceName,
 
     [Parameter(Mandatory = $false)]
-    [ValidateSet("PAYG", "AHUB", "DR", IgnoreCase = $false)]
+    [ValidateSet("LicenseIncluded", "BasePrice", IgnoreCase = $false)]
     [string] $LicenseType,
 
     [Parameter(Mandatory = $false)]
@@ -127,25 +122,19 @@ param (
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Start-Transcript -Path ".\Set-SqlVMLicenseType.log" -Append
+Start-Transcript -Path ".\Set-AzSqlMILicenseType.log" -Append
 $scriptStartTime = Get-Date
 Write-Output "Script execution started at: $($scriptStartTime.ToString('yyyy-MM-dd HH:mm:ss'))"
 
 #region --- Parameter validation ---
 if ($DisableAHUB) {
-    $LicenseType = "PAYG"
+    $LicenseType = "LicenseIncluded"
     $Force = $true
-    Write-Output "-DisableAHUB specified: targeting LicenseType=PAYG with -Force."
+    Write-Output "-DisableAHUB specified: targeting LicenseType=LicenseIncluded (PAYG) with -Force."
 }
 
 if (-not $LicenseType) {
     Write-Error "You must specify either -LicenseType or -DisableAHUB."
-    Stop-Transcript
-    exit 1
-}
-
-if ($VMName -and -not $ResourceGroup) {
-    Write-Error "-VMName requires -ResourceGroup to be specified."
     Stop-Transcript
     exit 1
 }
@@ -216,7 +205,7 @@ if (-not $TenantId) { $TenantId = $context.Tenant.Id }
 #endregion
 
 #region --- Import required modules ---
-foreach ($module in @("Az.Accounts", "Az.SqlVirtualMachine")) {
+foreach ($module in @("Az.Accounts", "Az.Sql")) {
     try { Import-Module $module -ErrorAction SilentlyContinue }
     catch { Write-Warning "Could not import module $module. Ensure Az PowerShell is installed." }
 }
@@ -266,63 +255,63 @@ foreach ($sub in $subscriptions) {
 
     Write-Output "`n=== Subscription: $($sub.Name) ($($sub.Id)) ==="
 
-    # Enumerate SQL VMs
+    # Enumerate Managed Instances
     try {
-        if ($VMName -and $ResourceGroup) {
-            $sqlVMs = @(Get-AzSqlVM -Name $VMName -ResourceGroupName $ResourceGroup -ErrorAction Stop)
+        if ($InstanceName -and $ResourceGroup) {
+            $instances = @(Get-AzSqlInstance -Name $InstanceName -ResourceGroupName $ResourceGroup -ErrorAction Stop)
         } elseif ($ResourceGroup) {
-            $sqlVMs = Get-AzSqlVM -ResourceGroupName $ResourceGroup -ErrorAction Stop
+            $instances = Get-AzSqlInstance -ResourceGroupName $ResourceGroup -ErrorAction Stop
         } else {
-            $sqlVMs = Get-AzSqlVM -ErrorAction Stop
+            $instances = Get-AzSqlInstance -ErrorAction Stop
         }
     } catch {
-        Write-Warning "Failed to list SQL VMs in subscription $($sub.Id): $_"
+        Write-Warning "Failed to list SQL Managed Instances in subscription $($sub.Id): $_"
         continue
     }
 
-    Write-Output "Found $($sqlVMs.Count) SQL VM(s)."
+    Write-Output "Found $($instances.Count) Managed Instance(s)."
 
-    foreach ($vm in $sqlVMs) {
+    foreach ($instance in $instances) {
         # Check exclusion tags
-        if ($tagTable.Count -gt 0 -and (Test-ExcludedByTags -ResourceTags $vm.Tags -ExclusionMap $tagTable)) {
-            Write-Output "  SKIPPED (tag exclusion): $($vm.Name)"
+        if ($tagTable.Count -gt 0 -and (Test-ExcludedByTags -ResourceTags $instance.Tags -ExclusionMap $tagTable)) {
+            Write-Output "  SKIPPED (tag exclusion): $($instance.ManagedInstanceName)"
             continue
         }
 
-        $currentLicense = $vm.SqlServerLicenseType
+        $currentLicense = $instance.LicenseType
         $needsUpdate = $Force -or ($currentLicense -ne $LicenseType)
 
         $record = [PSCustomObject]@{
             TenantId            = $TenantId
             SubscriptionId      = $sub.Id
             SubscriptionName    = $sub.Name
-            ResourceGroup       = $vm.ResourceGroupName
-            VMName              = $vm.Name
+            ResourceGroup       = $instance.ResourceGroupName
+            InstanceName        = $instance.ManagedInstanceName
             CurrentLicenseType  = $currentLicense
             TargetLicenseType   = $LicenseType
-            SQLImageOffer       = $vm.SqlImageOffer
-            SQLImageSku         = $vm.SqlImageSku
-            Location            = $vm.Location
+            SKU                 = $instance.Sku.Name
+            Location            = $instance.Location
             Action              = if ($needsUpdate) { "Modify" } else { "NoChange" }
         }
 
         if (-not $needsUpdate) {
-            Write-Output "  NO CHANGE: $($vm.Name) (already $currentLicense)"
+            Write-Output "  NO CHANGE: $($instance.ManagedInstanceName) (already $currentLicense)"
             $skippedResources.Add($record)
             continue
         }
 
-        Write-Output "  $(if ($ReportOnly) { '[ReportOnly] Would modify' } else { 'Modifying' }): $($vm.Name) [$currentLicense -> $LicenseType]"
+        Write-Output "  $(if ($ReportOnly) { '[ReportOnly] Would modify' } else { 'Modifying' }): $($instance.ManagedInstanceName) [$currentLicense -> $LicenseType]"
 
         if (-not $ReportOnly) {
             try {
-                Update-AzSqlVM -Name $vm.Name `
-                    -ResourceGroupName $vm.ResourceGroupName `
-                    -LicenseType $LicenseType | Out-Null
+                Set-AzSqlInstance -Name $instance.ManagedInstanceName `
+                    -ResourceGroupName $instance.ResourceGroupName `
+                    -LicenseType $LicenseType `
+                    -Force | Out-Null
                 $record.Action = "Modified"
                 Write-Output "    Updated successfully."
             } catch {
-                Write-Warning "    Failed to update $($vm.Name): $_"
+                Write-Warning "    Failed to update $($instance.ManagedInstanceName): $_"
                 $record.Action = "Failed"
             }
         }
@@ -335,12 +324,12 @@ foreach ($sub in $subscriptions) {
 #region --- Export report ---
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 if ($modifiedResources.Count -gt 0) {
-    $csvPath = ".\SqlVM_LicenseChange_$timestamp.csv"
+    $csvPath = ".\SqlMI_LicenseChange_$timestamp.csv"
     $modifiedResources | Export-Csv -Path $csvPath -NoTypeInformation
     Write-Output "`nReport saved to: $csvPath"
-    Write-Output "Total SQL VMs targeted for modification: $($modifiedResources.Count)"
+    Write-Output "Total instances targeted for modification: $($modifiedResources.Count)"
 } else {
-    Write-Output "`nNo SQL VMs required modification."
+    Write-Output "`nNo managed instances required modification."
 }
 #endregion
 

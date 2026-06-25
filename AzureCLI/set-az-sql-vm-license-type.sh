@@ -1,56 +1,62 @@
 #!/usr/bin/env bash
 # =============================================================================
-# set-sql-mi-license-type.sh
+# set-az-sql-vm-license-type.sh
 #
 # SYNOPSIS:
-#   Modifies the license type for Azure SQL Managed Instances across one or
-#   more subscriptions using Azure CLI.
+#   Modifies the SQL Server license type for SQL Server on Azure Virtual
+#   Machines across one or more subscriptions using Azure CLI.
 #
 # DESCRIPTION:
-#   Scans Azure SQL Managed Instances in the specified scope and converts them
-#   from Azure Hybrid Benefit (BasePrice) to Pay-as-you-go (LicenseIncluded),
-#   or sets any supported license type. Supports filtering by subscription,
-#   resource group, or instance name.
+#   Scans SQL Virtual Machine resources (type: Microsoft.SqlVirtualMachine/
+#   SqlVirtualMachines) in the specified scope and converts them from Azure
+#   Hybrid Benefit (AHUB) to Pay-as-you-go (PAYG), or sets any supported
+#   license type. Supports filtering by subscription, resource group, or VM
+#   name.
 #
-#   License type values for Azure SQL Managed Instance:
-#     LicenseIncluded  - Pay-as-you-go (PAYG)
-#     BasePrice        - Azure Hybrid Benefit (AHB/BYOL)
+#   License type values for SQL Server on Azure VMs:
+#     PAYG  - Pay-as-you-go. SQL Server license is billed through Azure.
+#     AHUB  - Azure Hybrid Benefit. Bring your own SQL Server license.
+#     DR    - Disaster Recovery. Free passive DR replica license.
+#
+#   NOTE: Only VMs registered with the SQL IaaS Agent Extension appear as
+#   SqlVirtualMachine resources. Unregistered VMs will not be found.
 #
 # PREREQUISITES:
 #   - Azure CLI >= 2.50.0  (az --version)
 #   - Logged in to Azure  (az login) or running with managed identity
-#   - Required role: SQL Managed Instance Contributor (or Contributor)
+#   - Required role: SQL Virtual Machine Contributor (or Contributor)
 #
 # USAGE:
-#   ./set-sql-mi-license-type.sh [OPTIONS]
+#   ./set-az-sql-vm-license-type.sh [OPTIONS]
 #
 # OPTIONS:
 #   -s, --subscription-id   <id|file>   Subscription ID or path to a file with
 #                                       one subscription ID per line. If omitted,
 #                                       all accessible subscriptions are scanned.
 #   -g, --resource-group    <name>      Limit scope to a specific resource group.
-#   -i, --instance-name     <name>      Limit scope to a specific managed instance.
-#   -l, --license-type      <type>      Target license type: LicenseIncluded|BasePrice.
-#       --disable-ahub                  Shorthand: set LicenseType=LicenseIncluded and --force.
+#   -v, --vm-name           <name>      Limit scope to a specific SQL VM name.
+#                                       Requires --resource-group.
+#   -l, --license-type      <type>      Target license type: PAYG|AHUB|DR.
+#       --disable-ahub                  Shorthand: set LicenseType=PAYG and --force.
 #   -f, --force                         Update all resources, not just those that differ.
 #   -t, --tenant-id         <id>        Azure tenant ID (used during az login).
 #       --report-only                   Print what would change; do not modify anything.
 #   -h, --help                          Show this help message.
 #
 # EXAMPLES:
-#   # Report which managed instances would be converted from AHB to PAYG
-#   ./set-sql-mi-license-type.sh --disable-ahub --report-only
+#   # Report which SQL VMs would be converted from AHUB to PAYG
+#   ./set-az-sql-vm-license-type.sh --disable-ahub --report-only
 #
-#   # Disable AHB on all managed instances in a specific subscription
-#   ./set-sql-mi-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
+#   # Disable AHUB on all SQL VMs in a specific subscription
+#   ./set-az-sql-vm-license-type.sh --subscription-id "<sub_id>" --disable-ahub --force
 #
-#   # Set all managed instances in a resource group to LicenseIncluded
-#   ./set-sql-mi-license-type.sh --subscription-id "<sub_id>" \
-#     --resource-group "<rg>" --license-type LicenseIncluded --force
+#   # Set all SQL VMs in a resource group to PAYG
+#   ./set-az-sql-vm-license-type.sh --subscription-id "<sub_id>" \
+#     --resource-group "<rg>" --license-type PAYG --force
 #
-#   # Disable AHB on a specific managed instance
-#   ./set-sql-mi-license-type.sh --subscription-id "<sub_id>" \
-#     --resource-group "<rg>" --instance-name "<mi_name>" --disable-ahub --force
+#   # Disable AHUB on a specific SQL VM
+#   ./set-az-sql-vm-license-type.sh --subscription-id "<sub_id>" \
+#     --resource-group "<rg>" --vm-name "<vm_name>" --disable-ahub --force
 # =============================================================================
 
 set -euo pipefail
@@ -60,14 +66,14 @@ set -euo pipefail
 # --------------------------------------------------------------------------- #
 SUBSCRIPTION_ID=""
 RESOURCE_GROUP=""
-INSTANCE_NAME=""
+VM_NAME=""
 LICENSE_TYPE=""
 TENANT_ID=""
 FORCE=false
 REPORT_ONLY=false
 DISABLE_AHUB=false
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-REPORT_FILE="SqlMI_LicenseChange_${TIMESTAMP}.csv"
+REPORT_FILE="SqlVM_LicenseChange_${TIMESTAMP}.csv"
 
 # --------------------------------------------------------------------------- #
 # Help
@@ -84,7 +90,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -s|--subscription-id)   SUBSCRIPTION_ID="$2"; shift 2 ;;
         -g|--resource-group)    RESOURCE_GROUP="$2";  shift 2 ;;
-        -i|--instance-name)     INSTANCE_NAME="$2";   shift 2 ;;
+        -v|--vm-name)           VM_NAME="$2";         shift 2 ;;
         -l|--license-type)      LICENSE_TYPE="$2";    shift 2 ;;
            --disable-ahub)      DISABLE_AHUB=true;    shift   ;;
         -f|--force)             FORCE=true;           shift   ;;
@@ -99,9 +105,9 @@ done
 # Validate / resolve parameters
 # --------------------------------------------------------------------------- #
 if $DISABLE_AHUB; then
-    LICENSE_TYPE="LicenseIncluded"
+    LICENSE_TYPE="PAYG"
     FORCE=true
-    echo "[INFO] --disable-ahub: targeting LicenseType=LicenseIncluded (PAYG) with --force."
+    echo "[INFO] --disable-ahub: targeting LicenseType=PAYG with --force."
 fi
 
 if [[ -z "$LICENSE_TYPE" ]]; then
@@ -109,8 +115,13 @@ if [[ -z "$LICENSE_TYPE" ]]; then
     exit 1
 fi
 
-if [[ "$LICENSE_TYPE" != "LicenseIncluded" && "$LICENSE_TYPE" != "BasePrice" ]]; then
-    echo "[ERROR] --license-type must be 'LicenseIncluded' or 'BasePrice'." >&2
+if [[ "$LICENSE_TYPE" != "PAYG" && "$LICENSE_TYPE" != "AHUB" && "$LICENSE_TYPE" != "DR" ]]; then
+    echo "[ERROR] --license-type must be 'PAYG', 'AHUB', or 'DR'." >&2
+    exit 1
+fi
+
+if [[ -n "$VM_NAME" && -z "$RESOURCE_GROUP" ]]; then
+    echo "[ERROR] --vm-name requires --resource-group to be specified." >&2
     exit 1
 fi
 
@@ -121,6 +132,9 @@ if ! command -v az &>/dev/null; then
     echo "[ERROR] Azure CLI (az) is not installed or not in PATH." >&2
     exit 1
 fi
+
+# Ensure the sqlvm extension is installed
+az extension add --name sqlvm --only-show-errors 2>/dev/null || true
 
 # --------------------------------------------------------------------------- #
 # Authentication check
@@ -161,7 +175,7 @@ fi
 # --------------------------------------------------------------------------- #
 # CSV report header
 # --------------------------------------------------------------------------- #
-echo "SubscriptionId,ResourceGroup,InstanceName,CurrentLicenseType,TargetLicenseType,SKU,Location,Action" \
+echo "SubscriptionId,ResourceGroup,VMName,CurrentLicenseType,TargetLicenseType,SQLImageOffer,SQLImageSku,Location,Action" \
     > "$REPORT_FILE"
 
 TOTAL_MODIFIED=0
@@ -177,34 +191,34 @@ for sub in "${SUBSCRIPTIONS[@]}"; do
         continue
     }
 
-    # Enumerate managed instances
-    mi_args=()
-    [[ -n "$RESOURCE_GROUP" ]] && mi_args+=("--resource-group" "$RESOURCE_GROUP")
-    [[ -n "$INSTANCE_NAME" ]] && mi_args+=("--name" "$INSTANCE_NAME" "--resource-group" "$RESOURCE_GROUP")
-
-    if [[ -n "$INSTANCE_NAME" && -n "$RESOURCE_GROUP" ]]; then
-        mi_list=$(az sql mi show --name "$INSTANCE_NAME" --resource-group "$RESOURCE_GROUP" \
-            --query "[{name:name,licenseType:licenseType,sku:sku.name,location:location,rg:resourceGroup}]" \
-            -o json 2>/dev/null) || { echo "  [WARNING] Could not retrieve instance $INSTANCE_NAME"; continue; }
+    # Enumerate SQL VMs
+    if [[ -n "$VM_NAME" && -n "$RESOURCE_GROUP" ]]; then
+        vm_list=$(az sql vm show \
+            --name "$VM_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[{name:name,licenseType:sqlServerLicenseType,offer:sqlImageOffer,sku:sqlImageSku,location:location,rg:resourceGroup}]" \
+            -o json 2>/dev/null) || { echo "  [WARNING] Could not retrieve SQL VM $VM_NAME"; continue; }
     elif [[ -n "$RESOURCE_GROUP" ]]; then
-        mi_list=$(az sql mi list --resource-group "$RESOURCE_GROUP" \
-            --query "[].{name:name,licenseType:licenseType,sku:sku.name,location:location,rg:resourceGroup}" \
-            -o json 2>/dev/null) || { echo "  [WARNING] Could not list instances in RG $RESOURCE_GROUP"; continue; }
+        vm_list=$(az sql vm list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[].{name:name,licenseType:sqlServerLicenseType,offer:sqlImageOffer,sku:sqlImageSku,location:location,rg:resourceGroup}" \
+            -o json 2>/dev/null) || { echo "  [WARNING] Could not list SQL VMs in RG $RESOURCE_GROUP"; continue; }
     else
-        mi_list=$(az sql mi list \
-            --query "[].{name:name,licenseType:licenseType,sku:sku.name,location:location,rg:resourceGroup}" \
-            -o json 2>/dev/null) || { echo "  [WARNING] Could not list managed instances"; continue; }
+        vm_list=$(az sql vm list \
+            --query "[].{name:name,licenseType:sqlServerLicenseType,offer:sqlImageOffer,sku:sqlImageSku,location:location,rg:resourceGroup}" \
+            -o json 2>/dev/null) || { echo "  [WARNING] Could not list SQL VMs"; continue; }
     fi
 
-    mi_count=$(echo "$mi_list" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
-    echo "  Found $mi_count managed instance(s)."
+    vm_count=$(echo "$vm_list" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+    echo "  Found $vm_count SQL VM(s)."
 
-    for ((i=0; i<mi_count; i++)); do
-        mi_name=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i]['name'])")
-        current_license=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('licenseType') or '')")
-        sku=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('sku') or '')")
-        location=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('location') or '')")
-        rg=$(echo "$mi_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('rg') or '')")
+    for ((i=0; i<vm_count; i++)); do
+        vm_name=$(echo "$vm_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i]['name'])")
+        current_license=$(echo "$vm_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('licenseType') or '')")
+        offer=$(echo "$vm_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('offer') or '')")
+        sku=$(echo "$vm_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('sku') or '')")
+        location=$(echo "$vm_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('location') or '')")
+        rg=$(echo "$vm_list" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[$i].get('rg') or '')")
 
         needs_update=false
         if $FORCE; then
@@ -218,27 +232,27 @@ for sub in "${SUBSCRIPTIONS[@]}"; do
             action="Modify"
             TOTAL_MODIFIED=$((TOTAL_MODIFIED + 1))
             if $REPORT_ONLY; then
-                echo "  [ReportOnly] Would modify: $mi_name [$current_license -> $LICENSE_TYPE]"
+                echo "  [ReportOnly] Would modify: $vm_name [$current_license -> $LICENSE_TYPE]"
                 action="WouldModify"
             else
-                echo "  Modifying: $mi_name [$current_license -> $LICENSE_TYPE]"
-                if az sql mi update \
-                    --name "$mi_name" \
+                echo "  Modifying: $vm_name [$current_license -> $LICENSE_TYPE]"
+                if az sql vm update \
+                    --name "$vm_name" \
                     --resource-group "$rg" \
                     --license-type "$LICENSE_TYPE" \
                     --output none 2>/dev/null; then
                     echo "    Updated successfully."
                     action="Modified"
                 else
-                    echo "    [WARNING] Failed to update $mi_name" >&2
+                    echo "    [WARNING] Failed to update $vm_name" >&2
                     action="Failed"
                 fi
             fi
         else
-            echo "  NO CHANGE: $mi_name (already $current_license)"
+            echo "  NO CHANGE: $vm_name (already $current_license)"
         fi
 
-        echo "${sub},${rg},${mi_name},${current_license},${LICENSE_TYPE},${sku},${location},${action}" \
+        echo "${sub},${rg},${vm_name},${current_license},${LICENSE_TYPE},${offer},${sku},${location},${action}" \
             >> "$REPORT_FILE"
     done
 done
@@ -249,6 +263,6 @@ done
 echo ""
 echo "============================================"
 echo "Report saved to: $REPORT_FILE"
-echo "Total managed instances targeted for modification: $TOTAL_MODIFIED"
+echo "Total SQL VMs targeted for modification: $TOTAL_MODIFIED"
 echo "Completed at: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "============================================"
