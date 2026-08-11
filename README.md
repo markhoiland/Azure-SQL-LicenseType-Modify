@@ -1,6 +1,6 @@
 # Azure SQL License Type Modification Scripts
 
-This repository provides a scalable solution to set or change the SQL Server license type across **all Azure SQL resource types** — Azure SQL Database, Azure SQL Managed Instance, SQL Server on Azure VMs, and Azure Arc-enabled SQL Server. Scripts are available in both **PowerShell** and **Azure CLI (Bash)**.
+This repository provides scripts to review and change licensing on Azure SQL Database, Azure SQL Managed Instance, SQL Server on Azure VMs, and Azure Arc-enabled SQL Server. Scripts are available in PowerShell and Azure CLI (Bash). Run report-only first and validate the resulting billing/licensing state in Azure before and after production changes.
 
 The primary use cases are:
 
@@ -10,7 +10,7 @@ The primary use cases are:
 - **Enable/disable Extended Security Updates (ESU)** on Arc-enabled SQL Servers
 - **Enable/disable unlimited virtualization (p-core) license** on Arc-enabled SQL Servers
 
-All scripts support scanning a single subscription, a list of subscriptions, or your entire tenant, with optional filtering by resource group, server/instance/VM name, and tag-based exclusions. Every script supports a **`-ReportOnly` / `--report-only`** mode that shows what would change without making any modifications.
+The Azure SQL Database, Managed Instance, and SQL VM scripts support a single subscription, subscription files, or tenant-wide discovery, with resource-group, resource-name, and tag exclusions where implemented. Every script supports a report-only mode. Arc SQL uses a separate licensing model and is not an AHUB-to-PAYG conversion.
 
 ---
 
@@ -66,6 +66,8 @@ Azure-SQL-LicenseType-Modify/
 
 > To disable AHB, change from `AHUB` → `PAYG`.
 
+> `DR` is a passive disaster-recovery licensing state and is intentionally not treated as AHUB. `--disable-ahub` only targets resources whose current state is `AHUB`.
+
 ### Azure Arc-enabled SQL Server
 
 | Value | Meaning |
@@ -73,6 +75,8 @@ Azure-SQL-LicenseType-Modify/
 | `PAYG` | **Pay-as-you-go** – SQL Server usage billed hourly via Azure |
 | `Paid` | **Paid** – license with Software Assurance (SA) |
 | `LicenseOnly` | **License Only** – perpetual license, no SA |
+
+Arc SQL licensing is independent of Azure SQL Database/MI `BasePrice` and SQL VM `AHUB`. Use the Arc scripts only for Arc-connected SQL Server resources.
 
 ---
 
@@ -103,6 +107,7 @@ Azure-SQL-LicenseType-Modify/
   az --version
   ```
 - **Python 3** (used internally for JSON parsing)
+- A POSIX-compatible shell (Azure Cloud Shell Bash, Linux, macOS, or WSL). Native Windows PowerShell is not a Bash shell.
 - **Authentication**:
   ```bash
   az login
@@ -132,7 +137,7 @@ Azure-SQL-LicenseType-Modify/
 ./AzureCLI/set-az-sql-db-license-type.sh --disable-ahub --report-only
 
 # Step 2 – Apply the change
-./AzureCLI/set-az-sql-db-license-type.sh --disable-ahub --force
+./AzureCLI/set-az-sql-db-license-type.sh --disable-ahub
 ```
 
 ### Disable AHB on All SQL Managed Instances (PowerShell)
@@ -193,13 +198,13 @@ Each script run produces:
 **PowerShell:**
 ```powershell
 # Download and run
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/PowerShell/Set-AzSqlDbLicenseType.ps1" -OutFile "Set-AzSqlDbLicenseType.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/markhoiland/Azure-SQL-LicenseType-Modify/main/PowerShell/Set-AzSqlDbLicenseType.ps1" -OutFile "Set-AzSqlDbLicenseType.ps1"
 .\Set-AzSqlDbLicenseType.ps1 -DisableAHUB -ReportOnly
 ```
 
 **Bash/CLI:**
 ```bash
-curl -O https://raw.githubusercontent.com/<owner>/Azure-SQL-LicenseType-Modify/main/AzureCLI/set-az-sql-db-license-type.sh
+curl -O https://raw.githubusercontent.com/markhoiland/Azure-SQL-LicenseType-Modify/main/AzureCLI/set-az-sql-db-license-type.sh
 chmod +x set-az-sql-db-license-type.sh
 ./set-az-sql-db-license-type.sh --disable-ahub --report-only
 ```

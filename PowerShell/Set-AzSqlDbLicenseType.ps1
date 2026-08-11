@@ -135,12 +135,17 @@ Write-Output "Script execution started at: $($scriptStartTime.ToString('yyyy-MM-
 #region --- Parameter validation ---
 if ($DisableAHUB) {
     $LicenseType = "LicenseIncluded"
-    $Force = $true
-    Write-Output "-DisableAHUB specified: targeting LicenseType=LicenseIncluded (PAYG) with -Force."
+    Write-Output "-DisableAHUB specified: only databases currently using BasePrice will be changed to LicenseIncluded (PAYG)."
 }
 
 if (-not $LicenseType) {
     Write-Error "You must specify either -LicenseType or -DisableAHUB."
+    Stop-Transcript
+    exit 1
+}
+
+if ($ServerName -and -not $ResourceGroup) {
+    Write-Error "-ServerName requires -ResourceGroup to identify the Azure SQL logical server."
     Stop-Transcript
     exit 1
 }
@@ -212,8 +217,8 @@ if (-not $TenantId) { $TenantId = $context.Tenant.Id }
 
 #region --- Import required modules ---
 foreach ($module in @("Az.Accounts", "Az.Sql")) {
-    try { Import-Module $module -ErrorAction SilentlyContinue }
-    catch { Write-Warning "Could not import module $module. Ensure Az PowerShell is installed." }
+    try { Import-Module $module -ErrorAction Stop }
+    catch { throw "Could not import required module '$module'. Install or update the Az PowerShell modules before running this script. $($_.Exception.Message)" }
 }
 #endregion
 
@@ -306,7 +311,8 @@ foreach ($sub in $subscriptions) {
             }
 
             $currentLicense = $db.LicenseType
-            $needsUpdate = $Force -or ($currentLicense -ne $LicenseType)
+            $needsUpdate = (($Force -or ($currentLicense -ne $LicenseType)) -and
+                (-not $DisableAHUB -or $currentLicense -eq "BasePrice"))
 
             $record = [PSCustomObject]@{
                 TenantId            = $TenantId
@@ -331,16 +337,22 @@ foreach ($sub in $subscriptions) {
             Write-Output "  $(if ($ReportOnly) { '[ReportOnly] Would modify' } else { 'Modifying' }): $($server.ServerName)/$($db.DatabaseName) [$currentLicense -> $LicenseType]"
 
             if (-not $ReportOnly) {
-                try {
-                    Set-AzSqlDatabase -ServerName $server.ServerName `
-                        -ResourceGroupName $db.ResourceGroupName `
-                        -DatabaseName $db.DatabaseName `
-                        -LicenseType $LicenseType | Out-Null
-                    $record.Action = "Modified"
-                    Write-Output "    Updated successfully."
-                } catch {
-                    Write-Warning "    Failed to update $($db.DatabaseName): $_"
-                    $record.Action = "Failed"
+                if ($PSCmdlet.ShouldProcess(
+                    "$($server.ServerName)/$($db.DatabaseName)",
+                    "Set license type to $LicenseType")) {
+                    try {
+                        Set-AzSqlDatabase -ServerName $server.ServerName `
+                            -ResourceGroupName $db.ResourceGroupName `
+                            -DatabaseName $db.DatabaseName `
+                            -LicenseType $LicenseType | Out-Null
+                        $record.Action = "Modified"
+                        Write-Output "    Updated successfully."
+                    } catch {
+                        Write-Warning "    Failed to update $($db.DatabaseName): $_"
+                        $record.Action = "Failed"
+                    }
+                } else {
+                    $record.Action = "WhatIf"
                 }
             }
 

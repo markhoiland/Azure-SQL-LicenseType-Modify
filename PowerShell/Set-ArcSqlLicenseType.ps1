@@ -247,8 +247,8 @@ Write-Output "Using Tenant ID: $TenantId"
 
 #region --- Import required modules ---
 foreach ($module in @("Az.Accounts", "Az.ConnectedMachine", "Az.ResourceGraph")) {
-    try { Import-Module $module -ErrorAction SilentlyContinue }
-    catch { Write-Warning "Could not import module $module. Ensure Az PowerShell is installed." }
+    try { Import-Module $module -ErrorAction Stop }
+    catch { throw "Could not import required module '$module'. Install or update the Az PowerShell modules before running this script. $($_.Exception.Message)" }
 }
 #endregion
 
@@ -474,7 +474,9 @@ $machineFilter
 
         if ($ReportOnly) {
             Write-Output "  [ReportOnly] Would update: $($resource.machineName)"
-        } else {
+        } elseif ($PSCmdlet.ShouldProcess(
+            "$($resource.resourceGroup)/$($resource.machineName)/$($resource.extensionName)",
+            "Update Azure Arc SQL license settings")) {
             try {
                 $settingsHash = @{}
                 foreach ($k in $settings.Keys) { $settingsHash[$k] = $settings[$k] }
@@ -491,6 +493,8 @@ $machineFilter
             } catch {
                 Write-Warning "  Failed to update $($resource.machineName): $_"
             }
+        } else {
+            Write-Output "  [WhatIf] Would update: $($resource.machineName)"
         }
     }
 }
