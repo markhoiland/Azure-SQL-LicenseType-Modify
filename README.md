@@ -10,7 +10,19 @@ The primary use cases are:
 - **Enable/disable Extended Security Updates (ESU)** on Arc-enabled SQL Servers
 - **Enable/disable unlimited virtualization (p-core) license** on Arc-enabled SQL Servers
 
-The Azure SQL Database, Managed Instance, and SQL VM scripts support a single subscription, subscription files, or tenant-wide discovery, with resource-group, resource-name, and tag exclusions where implemented. Every script supports a report-only mode. Arc SQL uses a separate licensing model and is not an AHUB-to-PAYG conversion.
+The Arc SQL settings above are implemented by both
+`PowerShell\Set-ArcSqlLicenseType.ps1` (`-EnableESU`, `-UsePcoreLicense`) and
+`AzureCLI\set-arc-sql-license-type.sh` (`--enable-esu`,
+`--use-pcore-license`). Both scripts update the Arc SQL Server extension
+settings and accept `Yes` or `No` values for those switches. ESU and p-core
+can be changed independently of `-LicenseType`/`--license-type`, but enabling
+either requires the effective license type to be `Paid` or `PAYG`.
+
+The Azure SQL Database, Managed Instance, and SQL VM scripts support a single
+subscription, subscription files, or tenant-wide discovery, with
+resource-group, resource-name, and tag exclusions where implemented. Every
+script supports a report-only mode. Arc SQL uses a separate licensing model
+and is not an AHUB-to-PAYG conversion.
 
 ---
 
