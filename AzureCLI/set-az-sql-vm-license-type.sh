@@ -106,8 +106,7 @@ done
 # --------------------------------------------------------------------------- #
 if $DISABLE_AHUB; then
     LICENSE_TYPE="PAYG"
-    FORCE=true
-    echo "[INFO] --disable-ahub: targeting LicenseType=PAYG with --force."
+    echo "[INFO] --disable-ahub: only SQL VMs currently using AHUB will be changed to PAYG."
 fi
 
 if [[ -z "$LICENSE_TYPE" ]]; then
@@ -225,6 +224,9 @@ for sub in "${SUBSCRIPTIONS[@]}"; do
             needs_update=true
         elif [[ "$current_license" != "$LICENSE_TYPE" ]]; then
             needs_update=true
+        fi
+        if $DISABLE_AHUB && [[ "$current_license" != "AHUB" ]]; then
+            needs_update=false
         fi
 
         action="NoChange"

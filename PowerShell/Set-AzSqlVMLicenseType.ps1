@@ -134,8 +134,7 @@ Write-Output "Script execution started at: $($scriptStartTime.ToString('yyyy-MM-
 #region --- Parameter validation ---
 if ($DisableAHUB) {
     $LicenseType = "PAYG"
-    $Force = $true
-    Write-Output "-DisableAHUB specified: targeting LicenseType=PAYG with -Force."
+    Write-Output "-DisableAHUB specified: only SQL VMs currently using AHUB will be changed to PAYG."
 }
 
 if (-not $LicenseType) {
@@ -217,8 +216,8 @@ if (-not $TenantId) { $TenantId = $context.Tenant.Id }
 
 #region --- Import required modules ---
 foreach ($module in @("Az.Accounts", "Az.SqlVirtualMachine")) {
-    try { Import-Module $module -ErrorAction SilentlyContinue }
-    catch { Write-Warning "Could not import module $module. Ensure Az PowerShell is installed." }
+    try { Import-Module $module -ErrorAction Stop }
+    catch { throw "Could not import required module '$module'. Install or update the Az PowerShell modules before running this script. $($_.Exception.Message)" }
 }
 #endregion
 
@@ -290,7 +289,8 @@ foreach ($sub in $subscriptions) {
         }
 
         $currentLicense = $vm.SqlServerLicenseType
-        $needsUpdate = $Force -or ($currentLicense -ne $LicenseType)
+        $needsUpdate = (($Force -or ($currentLicense -ne $LicenseType)) -and
+            (-not $DisableAHUB -or $currentLicense -eq "AHUB"))
 
         $record = [PSCustomObject]@{
             TenantId            = $TenantId
@@ -315,15 +315,21 @@ foreach ($sub in $subscriptions) {
         Write-Output "  $(if ($ReportOnly) { '[ReportOnly] Would modify' } else { 'Modifying' }): $($vm.Name) [$currentLicense -> $LicenseType]"
 
         if (-not $ReportOnly) {
-            try {
-                Update-AzSqlVM -Name $vm.Name `
-                    -ResourceGroupName $vm.ResourceGroupName `
-                    -LicenseType $LicenseType | Out-Null
-                $record.Action = "Modified"
-                Write-Output "    Updated successfully."
-            } catch {
-                Write-Warning "    Failed to update $($vm.Name): $_"
-                $record.Action = "Failed"
+            if ($PSCmdlet.ShouldProcess(
+                "$($vm.ResourceGroupName)/$($vm.Name)",
+                "Set license type to $LicenseType")) {
+                try {
+                    Update-AzSqlVM -Name $vm.Name `
+                        -ResourceGroupName $vm.ResourceGroupName `
+                        -LicenseType $LicenseType | Out-Null
+                    $record.Action = "Modified"
+                    Write-Output "    Updated successfully."
+                } catch {
+                    Write-Warning "    Failed to update $($vm.Name): $_"
+                    $record.Action = "Failed"
+                }
+            } else {
+                $record.Action = "WhatIf"
             }
         }
 

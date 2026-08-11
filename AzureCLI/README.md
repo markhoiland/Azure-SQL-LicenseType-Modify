@@ -85,7 +85,7 @@ chmod +x set-arc-sql-license-type.sh
 | `-n`, `--server-name` | Limit scope to a SQL server |
 | `-d`, `--database-name` | Limit scope to a single database |
 | `-l`, `--license-type` | Target: `LicenseIncluded` or `BasePrice` |
-| `--disable-ahub` | Shorthand: sets `LicenseIncluded` + `--force` |
+| `--disable-ahub` | Safely changes only databases currently set to `BasePrice` |
 | `-f`, `--force` | Update all databases, not just those that differ |
 | `-t`, `--tenant-id` | Azure tenant ID |
 | `--report-only` | Print changes without executing them |
@@ -124,7 +124,7 @@ chmod +x set-arc-sql-license-type.sh
 | `-g`, `--resource-group` | Limit scope to a resource group |
 | `-i`, `--instance-name` | Limit scope to a specific managed instance |
 | `-l`, `--license-type` | Target: `LicenseIncluded` or `BasePrice` |
-| `--disable-ahub` | Shorthand: sets `LicenseIncluded` + `--force` |
+| `--disable-ahub` | Safely changes only instances currently set to `BasePrice` |
 | `-f`, `--force` | Update all instances, not just those that differ |
 | `-t`, `--tenant-id` | Azure tenant ID |
 | `--report-only` | Print changes without executing them |
@@ -160,13 +160,13 @@ chmod +x set-arc-sql-license-type.sh
 | `-g`, `--resource-group` | Limit scope to a resource group |
 | `-v`, `--vm-name` | Limit scope to a specific SQL VM (requires `--resource-group`) |
 | `-l`, `--license-type` | Target: `PAYG`, `AHUB`, or `DR` |
-| `--disable-ahub` | Shorthand: sets `PAYG` + `--force` |
+| `--disable-ahub` | Safely changes only SQL VMs currently set to `AHUB` |
 | `-f`, `--force` | Update all VMs, not just those that differ |
 | `-t`, `--tenant-id` | Azure tenant ID |
 | `--report-only` | Print changes without executing them |
 | `-h`, `--help` | Show help |
 
-> **Note:** Only SQL VMs registered with the SQL IaaS Agent Extension are visible.
+> **Important:** Only SQL VMs registered with the SQL IaaS Agent Extension are visible. SQL VM license changes are limited to eligible SQL editions and may be blocked by centrally managed AHUB. `DR` is not changed by `--disable-ahub`.
 
 ### Examples
 
@@ -236,6 +236,8 @@ chmod +x set-arc-sql-license-type.sh
 ---
 
 ## Subscription File Format
+
+`--server-name` and `--instance-name` require `--resource-group`. Azure SQL Database AHUB conversion is intended for eligible provisioned vCore databases; DTU-based and serverless databases are not AHUB conversion targets.
 
 To target multiple specific subscriptions, create a plain text file with one subscription ID per line:
 

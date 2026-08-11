@@ -100,8 +100,7 @@ done
 # --------------------------------------------------------------------------- #
 if $DISABLE_AHUB; then
     LICENSE_TYPE="LicenseIncluded"
-    FORCE=true
-    echo "[INFO] --disable-ahub: targeting LicenseType=LicenseIncluded (PAYG) with --force."
+    echo "[INFO] --disable-ahub: only instances currently using BasePrice will be changed to LicenseIncluded (PAYG)."
 fi
 
 if [[ -z "$LICENSE_TYPE" ]]; then
@@ -111,6 +110,11 @@ fi
 
 if [[ "$LICENSE_TYPE" != "LicenseIncluded" && "$LICENSE_TYPE" != "BasePrice" ]]; then
     echo "[ERROR] --license-type must be 'LicenseIncluded' or 'BasePrice'." >&2
+    exit 1
+fi
+
+if [[ -n "$INSTANCE_NAME" && -z "$RESOURCE_GROUP" ]]; then
+    echo "[ERROR] --instance-name requires --resource-group." >&2
     exit 1
 fi
 
@@ -211,6 +215,9 @@ for sub in "${SUBSCRIPTIONS[@]}"; do
             needs_update=true
         elif [[ "$current_license" != "$LICENSE_TYPE" ]]; then
             needs_update=true
+        fi
+        if $DISABLE_AHUB && [[ "$current_license" != "BasePrice" ]]; then
+            needs_update=false
         fi
 
         action="NoChange"

@@ -329,7 +329,7 @@ PYEOF
 )
 
     # Check for errors
-    if echo "$new_settings_json" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if '__error' not in d else 1)" 2>/dev/null; then
+    if echo "$new_settings_json" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if '__error' in d else 1)" 2>/dev/null; then
         local error_msg
         error_msg=$(echo "$new_settings_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('__error',''))" 2>/dev/null)
         if [[ -n "$error_msg" ]]; then

@@ -73,7 +73,7 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 | `-ServerName` | Limit scope to a SQL server |
 | `-DatabaseName` | Limit scope to a single database |
 | `-LicenseType` | Target: `LicenseIncluded` or `BasePrice` |
-| `-DisableAHUB` | Shorthand: sets `LicenseIncluded` + `-Force` |
+| `-DisableAHUB` | Safely changes only databases currently set to `BasePrice` |
 | `-Force` | Update all databases, not just those that differ |
 | `-ExclusionTags` | JSON string of tags to exclude (e.g. `'{"Env":"Dev"}'`) |
 | `-TenantId` | Azure tenant ID |
@@ -111,7 +111,7 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 | `-ResourceGroup` | Limit scope to a resource group |
 | `-InstanceName` | Limit scope to a specific managed instance |
 | `-LicenseType` | Target: `LicenseIncluded` or `BasePrice` |
-| `-DisableAHUB` | Shorthand: sets `LicenseIncluded` + `-Force` |
+| `-DisableAHUB` | Safely changes only instances currently set to `BasePrice` |
 | `-Force` | Update all instances, not just those that differ |
 | `-ExclusionTags` | JSON string of tags to exclude |
 | `-TenantId` | Azure tenant ID |
@@ -143,14 +143,14 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 | `-ResourceGroup` | Limit scope to a resource group |
 | `-VMName` | Limit scope to a specific SQL VM (requires `-ResourceGroup`) |
 | `-LicenseType` | Target: `PAYG`, `AHUB`, or `DR` |
-| `-DisableAHUB` | Shorthand: sets `PAYG` + `-Force` |
+| `-DisableAHUB` | Safely changes only SQL VMs currently set to `AHUB` |
 | `-Force` | Update all VMs, not just those that differ |
 | `-ExclusionTags` | JSON string of tags to exclude |
 | `-TenantId` | Azure tenant ID |
 | `-ReportOnly` | Generate CSV report without making changes |
 | `-UseManagedIdentity` | Authenticate with managed identity |
 
-> **Note:** Only SQL VMs registered with the SQL IaaS Agent Extension appear. To register all VMs in a subscription, run:
+> **Important:** Only SQL VMs registered with the SQL IaaS Agent Extension appear. SQL VM license changes are limited to eligible SQL editions and may be blocked by centrally managed AHUB. `DR` is not changed by `-DisableAHUB`. To register VMs in a subscription, run:
 > ```powershell
 > Register-AzSqlVMWithSqlIaasExtension -SubscriptionId "<sub_id>"
 > ```
@@ -217,6 +217,8 @@ This folder contains PowerShell scripts for modifying the SQL Server license typ
 ---
 
 ## CSV File Formats
+
+`-ServerName` and `-DatabaseName` require `-ResourceGroup`; `-InstanceName` also requires `-ResourceGroup`. Azure SQL Database AHUB applies to eligible provisioned vCore databases. DTU-based and serverless databases are not AHUB conversion targets and are skipped when using `-DisableAHUB`.
 
 ### Subscriptions CSV (`subscriptions.csv`)
 ```csv

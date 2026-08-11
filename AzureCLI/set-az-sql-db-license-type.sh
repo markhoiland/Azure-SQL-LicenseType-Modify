@@ -102,8 +102,7 @@ done
 # --------------------------------------------------------------------------- #
 if $DISABLE_AHUB; then
     LICENSE_TYPE="LicenseIncluded"
-    FORCE=true
-    echo "[INFO] --disable-ahub: targeting LicenseType=LicenseIncluded (PAYG) with --force."
+    echo "[INFO] --disable-ahub: only databases currently using BasePrice will be changed to LicenseIncluded (PAYG)."
 fi
 
 if [[ -z "$LICENSE_TYPE" ]]; then
@@ -113,6 +112,11 @@ fi
 
 if [[ "$LICENSE_TYPE" != "LicenseIncluded" && "$LICENSE_TYPE" != "BasePrice" ]]; then
     echo "[ERROR] --license-type must be 'LicenseIncluded' or 'BasePrice'." >&2
+    exit 1
+fi
+
+if [[ -n "$SERVER_NAME" && -z "$RESOURCE_GROUP" ]]; then
+    echo "[ERROR] --server-name requires --resource-group." >&2
     exit 1
 fi
 
@@ -201,6 +205,9 @@ process_databases() {
         elif [[ "$current_license" != "$LICENSE_TYPE" ]]; then
             needs_update=true
         fi
+        if $DISABLE_AHUB && [[ "$current_license" != "BasePrice" ]]; then
+            needs_update=false
+        fi
 
         local action="NoChange"
         if $needs_update; then
@@ -215,7 +222,7 @@ process_databases() {
                     --server "$server" \
                     --resource-group "$rg" \
                     --name "$db_name" \
-                    --set licenseType="$LICENSE_TYPE" \
+                    --license-type "$LICENSE_TYPE" \
                     --output none 2>/dev/null; then
                     echo "    Updated successfully."
                     action="Modified"
