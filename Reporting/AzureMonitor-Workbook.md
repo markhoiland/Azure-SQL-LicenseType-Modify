@@ -4,7 +4,7 @@ Use an Azure Monitor Workbook for a quick-access operational view in the Azure p
 
 ## What it can and cannot do
 
-It can query Arc SQL inventory across selected subscriptions, filter by license and location, show current metadata, and show Log Analytics heartbeat observations.
+It can query Azure SQL Database, Managed Instance, SQL VM, and Arc SQL inventory across selected subscriptions, filter by license and location, show current metadata, and show Log Analytics heartbeat observations.
 
 It should not be treated as the authoritative monthly billing model. Cost Management exports are not automatically a native Workbook billing table. To show billing in a Workbook, first ingest exports into Log Analytics, ADX, or another queryable store, or link users to a saved Cost Analysis view.
 
@@ -27,7 +27,7 @@ It should not be treated as the authoritative monthly billing model. Cost Manage
 7. Add a Query item.
 8. Select Azure Resource Graph as the data source.
 9. Set the scope to the selected subscriptions or management group.
-10. Paste the inventory query from `KQL/arc-sql-inventory.kql`.
+10. Paste the query block for the resource type in scope from `KQL/arc-sql-inventory.kql`.
 11. Bind the subscription parameter to the query scope or filter.
 12. Set visualization to Grid.
 13. Add a second query using the license-summary query and visualize it as a chart.

@@ -38,11 +38,11 @@ Actual and amortized costs answer different questions. Do not combine them into 
 
 ## Step 2: Capture inventory snapshots
 
-Run [`KQL/arc-sql-inventory.kql`](./KQL/arc-sql-inventory.kql) daily or monthly through Resource Graph Explorer, an Automation/Function job, or a Fabric notebook/Data Factory pipeline.
+Run the query blocks in [`KQL/arc-sql-inventory.kql`](./KQL/arc-sql-inventory.kql) daily or monthly through Resource Graph Explorer, an Automation/Function job, or a Fabric notebook/Data Factory pipeline. Combine the Azure SQL Database, Managed Instance, SQL VM, and Arc SQL Server results into a single snapshot table using a shared `ResourceType` column.
 
 Store at least:
 
-`SnapshotDate`, `ResourceId`, `SubscriptionId`, `ResourceGroup`, `Location`, `ServerName`, `SqlEdition`, `SqlVersion`, `LicenseType`, `vCPUs`, `ProvisioningState`, and `Tags`.
+`SnapshotDate`, `ResourceType`, `ResourceId`, `SubscriptionId`, `ResourceGroup`, `Location`, `ServerName`, `LicenseType`, and `Tags`, plus type-specific columns such as `Edition`, `vCores`/`vCPUs`, and `ProvisioningState` where the source query provides them.
 
 Retain snapshots so historical charges remain attributable after resources are deleted, renamed, or moved.
 

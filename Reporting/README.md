@@ -14,7 +14,7 @@ The reporting design deliberately separates inventory from billing:
 
 ## Start here
 
-1. Run [`KQL/arc-sql-inventory.kql`](./KQL/arc-sql-inventory.kql) in Resource Graph Explorer.
+1. Run the relevant query block(s) from [`KQL/arc-sql-inventory.kql`](./KQL/arc-sql-inventory.kql) in Resource Graph Explorer, one block at a time (Azure SQL Database, Managed Instance, SQL VM, and Arc SQL Server are covered separately).
 2. Review current license states and identify resources affected by the license-change scripts.
 3. Use the script `-ReportOnly`/`--report-only` CSV as an execution-specific change list.
 4. For quick recurring portal access, follow [`AzureMonitor-Workbook.md`](./AzureMonitor-Workbook.md).
@@ -24,7 +24,7 @@ The reporting design deliberately separates inventory from billing:
 
 1. Open Resource Graph Explorer in the Azure portal.
 2. Select the subscriptions or management group containing the SQL resources.
-3. Paste the inventory query from `KQL/arc-sql-inventory.kql`.
+3. Paste the query block for the resource type in scope from `KQL/arc-sql-inventory.kql`.
 4. Select Run query.
 5. Confirm subscription, resource group, server name, edition, version, license type, vCPUs, and provisioning state.
 6. Select Download as CSV for a point-in-time inventory.
