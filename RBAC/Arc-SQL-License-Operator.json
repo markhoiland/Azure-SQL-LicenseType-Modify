@@ -1,0 +1,24 @@
+{
+  "Name": "Arc SQL Server License Operator (Physical Core)",
+  "IsCustom": true,
+  "Description": "View Azure Arc-enabled SQL Server objects and manage (create, read, update) Azure Arc SQL Server physical-core licenses (Microsoft.AzureArcData/sqlServerLicenses). Does not grant write access to any other Arc SQL resource type, and does not grant delete rights on licenses.",
+  "Actions": [
+    "Microsoft.AzureArcData/sqlServerInstances/read",
+    "Microsoft.AzureArcData/sqlServerInstances/*/read",
+    "Microsoft.AzureArcData/dataControllers/read",
+    "Microsoft.AzureArcData/dataControllers/*/read",
+    "Microsoft.AzureArcData/sqlServerLicenses/read",
+    "Microsoft.AzureArcData/sqlServerLicenses/write",
+    "Microsoft.AzureArcData/locations/*/read",
+    "Microsoft.AzureArcData/operations/read",
+    "Microsoft.AzureArcData/register/action",
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Resources/subscriptions/read"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<subscription-id>"
+  ]
+}

@@ -36,18 +36,21 @@ Azure-SQL-LicenseType-Modify/
 │   ├── Set-AzSqlMILicenseType.ps1     # Azure SQL Managed Instance
 │   ├── Set-AzSqlVMLicenseType.ps1     # SQL Server on Azure VMs
 │   └── Set-ArcSqlLicenseType.ps1   # Azure Arc-enabled SQL Server
-└── AzureCLI/
-    ├── README.md                    # Azure CLI-specific documentation
-    ├── set-az-sql-db-license-type.sh   # Azure SQL Database
-    ├── set-az-sql-mi-license-type.sh   # Azure SQL Managed Instance
-    ├── set-az-sql-vm-license-type.sh   # SQL Server on Azure VMs
-    └── set-arc-sql-license-type.sh  # Azure Arc-enabled SQL Server
-└── Reporting/
-    ├── README.md                     # Reporting options and operating model
-    ├── KQL/
-    │   └── arc-sql-inventory.kql     # Azure Resource Graph inventory queries
-    ├── AzureMonitor-Workbook.md      # Azure Monitor Workbook build guide
-    └── PowerBI-Fabric.md             # Recommended Power BI/Fabric build guide
+├── AzureCLI/
+│   ├── README.md                    # Azure CLI-specific documentation
+│   ├── set-az-sql-db-license-type.sh   # Azure SQL Database
+│   ├── set-az-sql-mi-license-type.sh   # Azure SQL Managed Instance
+│   ├── set-az-sql-vm-license-type.sh   # SQL Server on Azure VMs
+│   └── set-arc-sql-license-type.sh  # Azure Arc-enabled SQL Server
+├── Reporting/
+│   ├── README.md                     # Reporting options and operating model
+│   ├── KQL/
+│   │   └── arc-sql-inventory.kql     # Azure Resource Graph inventory queries
+│   ├── AzureMonitor-Workbook.md      # Azure Monitor Workbook build guide
+│   └── PowerBI-Fabric.md             # Recommended Power BI/Fabric build guide
+└── RBAC/
+    ├── README.md                     # Custom role deployment and validation guide
+    └── Arc-SQL-License-Operator.json # Least-privilege custom role for Arc SQL license management
 ```
 
 ---
@@ -116,7 +119,7 @@ Arc SQL licensing is independent of Azure SQL Database/MI `BasePrice` and SQL VM
 - **RBAC roles required**:
   - Azure SQL DB / MI: `SQL Server Contributor` or `Contributor`
   - SQL VMs: `SQL Virtual Machine Contributor` or `Contributor`
-  - Arc SQL: `Azure Connected Machine Resource Administrator`
+  - Arc SQL scripts: `Azure Connected Machine Resource Administrator`. The least-privilege custom role in [`RBAC/Arc-SQL-License-Operator.json`](./RBAC/Arc-SQL-License-Operator.json) supports direct `Microsoft.AzureArcData/sqlServerLicenses` operations only; it does not authorize the repository's Arc scripts.
 
 ### Azure CLI Scripts
 
@@ -238,6 +241,7 @@ For complete parameter reference and examples for each script, see:
 - [Reporting/README.md](./Reporting/README.md) – inventory and billing reporting options
 - [Reporting/AzureMonitor-Workbook.md](./Reporting/AzureMonitor-Workbook.md) – build an Azure Monitor Workbook
 - [Reporting/PowerBI-Fabric.md](./Reporting/PowerBI-Fabric.md) – build the recommended Power BI/Fabric dashboard
+- [RBAC/README.md](./RBAC/README.md) – deploy a least-privilege custom role for Arc SQL license management
 
 ---
 
