@@ -202,7 +202,7 @@ build_rg_query() {
     local rg_filter=""
     local machine_filter=""
 
-    [[ -n "$LICENSE_TYPE" ]] && \
+    [[ -n "$LICENSE_TYPE" ]] && ! $FORCE && \
         license_filter="| where properties.settings.LicenseType!='${LICENSE_TYPE}'"
     [[ -n "$RESOURCE_GROUP" ]] && \
         rg_filter="| where resourceGroup =~ '${RESOURCE_GROUP}'"
@@ -249,6 +249,8 @@ update_arc_extension() {
     local location="$7"
     local current_license="$8"
 
+    LAST_ACTION="NoChange"
+
     # Get current extension settings
     local ext_json
     ext_json=$(az connectedmachine extension show \
@@ -293,13 +295,8 @@ if license_type:
         if license_type == "LicenseOnly" and not lo_allowed:
             print(json.dumps({"__error": "ESU must be disabled before setting LicenseOnly"}))
             sys.exit(0)
-        if current_lt:
-            if force:
-                settings["LicenseType"] = license_type
-                write = True
-        else:
-            settings["LicenseType"] = license_type
-            write = True
+        settings["LicenseType"] = license_type
+        write = True
 
 # ESU
 enable_esu = "${ENABLE_ESU}"
@@ -334,6 +331,7 @@ PYEOF
         error_msg=$(echo "$new_settings_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('__error',''))" 2>/dev/null)
         if [[ -n "$error_msg" ]]; then
             echo "    [SKIPPED] $error_msg"
+            LAST_ACTION="Skipped"
             return 0
         fi
     fi
@@ -360,11 +358,12 @@ print(json.dumps(d))
 
     if $REPORT_ONLY; then
         echo "  [ReportOnly] Would update: $machine [$current_license -> ${LICENSE_TYPE:-unchanged}]"
+        LAST_ACTION="WouldModify"
         return 0
     fi
 
     echo "  Updating: $machine [$current_license -> ${LICENSE_TYPE:-unchanged}]"
-    az connectedmachine extension update \
+    if az connectedmachine extension update \
         --machine-name "$machine" \
         --resource-group "$rg" \
         --name "$ext_name" \
@@ -373,8 +372,13 @@ print(json.dumps(d))
         --type "$ext_type" \
         --settings "$final_settings" \
         --no-wait \
-        --output none 2>/dev/null && echo "    Update submitted (async)." || \
+        --output none 2>/dev/null; then
+        echo "    Update submitted (async)."
+        LAST_ACTION="Modified"
+    else
         echo "    [WARNING] Update command failed."
+        LAST_ACTION="Failed"
+    fi
 }
 
 # --------------------------------------------------------------------------- #
@@ -421,7 +425,7 @@ for sub in "${SUBSCRIPTIONS[@]}"; do
             --query "properties.settings.LicenseType" -o tsv 2>/dev/null || echo "")
 
         update_arc_extension "$sub" "$rg" "$machine" "$ext_name" "$publisher" "$ext_type" "$location" "$current_license"
-        action_result=$(if $REPORT_ONLY; then echo "WouldModify"; else echo "Modified"; fi)
+        action_result="$LAST_ACTION"
 
         echo "${sub},${rg},${machine},${ext_name},${current_license},${LICENSE_TYPE},${action_result}" \
             >> "$REPORT_FILE"

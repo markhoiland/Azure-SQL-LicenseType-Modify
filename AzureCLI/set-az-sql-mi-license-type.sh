@@ -126,6 +126,11 @@ if ! command -v az &>/dev/null; then
     exit 1
 fi
 
+if ! command -v python3 &>/dev/null; then
+    echo "[ERROR] python3 is required for JSON parsing." >&2
+    exit 1
+fi
+
 # --------------------------------------------------------------------------- #
 # Authentication check
 # --------------------------------------------------------------------------- #

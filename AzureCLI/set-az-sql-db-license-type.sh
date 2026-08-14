@@ -128,6 +128,11 @@ if ! command -v az &>/dev/null; then
     exit 1
 fi
 
+if ! command -v python3 &>/dev/null; then
+    echo "[ERROR] python3 is required for JSON parsing." >&2
+    exit 1
+fi
+
 # --------------------------------------------------------------------------- #
 # Authentication check
 # --------------------------------------------------------------------------- #
@@ -181,13 +186,21 @@ process_databases() {
     local server="$2"
     local rg="$3"
 
-    local db_query_args=("--server" "$server" "--resource-group" "$rg")
-    [[ -n "$DATABASE_NAME" ]] && db_query_args+=("--name" "$DATABASE_NAME")
-
     local db_list
-    db_list=$(az sql db list "${db_query_args[@]}" \
-        --query "[?name!='master'].{name:name,licenseType:licenseType,edition:edition,location:location,rg:resourceGroup}" \
-        -o json 2>/dev/null) || return 0
+    if [[ -n "$DATABASE_NAME" ]]; then
+        db_list=$(az sql db show \
+            --server "$server" \
+            --resource-group "$rg" \
+            --name "$DATABASE_NAME" \
+            --query "[{name:name,licenseType:licenseType,edition:edition,location:location,rg:resourceGroup}]" \
+            -o json 2>/dev/null) || return 0
+    else
+        db_list=$(az sql db list \
+            --server "$server" \
+            --resource-group "$rg" \
+            --query "[?name!='master'].{name:name,licenseType:licenseType,edition:edition,location:location,rg:resourceGroup}" \
+            -o json 2>/dev/null) || return 0
+    fi
 
     local db_count
     db_count=$(echo "$db_list" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
