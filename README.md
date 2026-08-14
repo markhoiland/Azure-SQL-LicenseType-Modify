@@ -42,6 +42,12 @@ Azure-SQL-LicenseType-Modify/
     ├── set-az-sql-mi-license-type.sh   # Azure SQL Managed Instance
     ├── set-az-sql-vm-license-type.sh   # SQL Server on Azure VMs
     └── set-arc-sql-license-type.sh  # Azure Arc-enabled SQL Server
+└── Reporting/
+    ├── README.md                     # Reporting options and operating model
+    ├── KQL/
+    │   └── arc-sql-inventory.kql     # Azure Resource Graph inventory queries
+    ├── AzureMonitor-Workbook.md      # Azure Monitor Workbook build guide
+    └── PowerBI-Fabric.md             # Recommended Power BI/Fabric build guide
 ```
 
 ---
@@ -229,6 +235,9 @@ For complete parameter reference and examples for each script, see:
 
 - [PowerShell/README.md](./PowerShell/README.md) – full PowerShell documentation
 - [AzureCLI/README.md](./AzureCLI/README.md) – full Azure CLI documentation
+- [Reporting/README.md](./Reporting/README.md) – inventory and billing reporting options
+- [Reporting/AzureMonitor-Workbook.md](./Reporting/AzureMonitor-Workbook.md) – build an Azure Monitor Workbook
+- [Reporting/PowerBI-Fabric.md](./Reporting/PowerBI-Fabric.md) – build the recommended Power BI/Fabric dashboard
 
 ---
 

@@ -1,0 +1,101 @@
+// Azure Resource Graph queries: Azure SQL licensing inventory.
+// ARG provides inventory metadata; it does not provide billable hours or cost.
+// Resource Graph Explorer runs one query at a time: paste and run each
+// block below separately rather than the whole file at once.
+
+// Azure SQL Database license inventory (LicenseIncluded/BasePrice = AHB state).
+Resources
+| where type =~ 'microsoft.sql/servers/databases'
+| where name !~ 'master'
+| extend p = todynamic(properties)
+| project
+    SubscriptionId = subscriptionId,
+    ResourceGroup = resourceGroup,
+    Location = location,
+    ResourceId = id,
+    ServerName = extract(@'/servers/([^/]+)/databases/', 1, id),
+    DatabaseName = name,
+    LicenseType = tostring(p.licenseType),
+    Edition = tostring(coalesce(p.currentSku.tier, p.edition)),
+    vCores = toint(p.currentSku.capacity),
+    Tags = tostring(tags)
+| order by ServerName asc, DatabaseName asc
+
+// Azure SQL Managed Instance license inventory (LicenseIncluded/BasePrice = AHB state).
+Resources
+| where type =~ 'microsoft.sql/managedinstances'
+| extend p = todynamic(properties)
+| project
+    SubscriptionId = subscriptionId,
+    ResourceGroup = resourceGroup,
+    Location = location,
+    ResourceId = id,
+    InstanceName = name,
+    LicenseType = tostring(p.licenseType),
+    Edition = tostring(todynamic(sku).tier),
+    vCores = toint(coalesce(p.vCores, p.vCoresLimit)),
+    ProvisioningState = tostring(p.provisioningState),
+    Tags = tostring(tags)
+| order by InstanceName asc
+
+// SQL Server on Azure VM license inventory (PAYG/AHUB).
+Resources
+| where type =~ 'microsoft.sqlvirtualmachine/sqlvirtualmachines'
+| extend p = todynamic(properties)
+| project
+    SubscriptionId = subscriptionId,
+    ResourceGroup = resourceGroup,
+    Location = location,
+    ResourceId = id,
+    VMName = name,
+    LicenseType = tostring(p.sqlServerLicenseType),
+    SqlImageSku = tostring(p.sqlImageSku),
+    SqlImageOffer = tostring(p.sqlImageOffer),
+    Tags = tostring(tags)
+| order by VMName asc
+
+// Azure Arc-enabled SQL Server inventory (Paid/LicenseOnly/PAYG/Undefined).
+Resources
+| where type =~ 'microsoft.azurearcdata/sqlserverinstances'
+| extend p = todynamic(properties)
+| project
+    SubscriptionId = subscriptionId,
+    ResourceGroup = resourceGroup,
+    Location = location,
+    ResourceId = id,
+    ServerName = tostring(coalesce(p.sqlServerName, p.serverName, name)),
+    SqlEdition = tostring(coalesce(p.edition, p.sqlEdition)),
+    SqlVersion = tostring(coalesce(p.version, p.sqlServerVersion)),
+    LicenseType = tostring(coalesce(p.licenseType, p.settings.licenseType)),
+    vCPUs = toint(coalesce(p.vCores, p.vcores, p.cores, p.logicalCores)),
+    HostType = tostring(p.hostType),
+    ProvisioningState = tostring(coalesce(p.provisioningState, p.status)),
+    Tags = tostring(tags)
+| order by ServerName asc
+
+// Optional: summarize Arc SQL inventory by license type.
+Resources
+| where type =~ 'microsoft.azurearcdata/sqlserverinstances'
+| extend p = todynamic(properties)
+| summarize ServerCount = count() by LicenseType = tostring(coalesce(p.licenseType, p.settings.licenseType))
+| order by LicenseType asc
+
+// Optional: broader Azure server inventory for a consolidated dashboard.
+union isfuzzy=true
+(
+    Resources
+    | where type =~ 'microsoft.compute/virtualmachines'
+    | project ResourceId = id, SubscriptionId = subscriptionId, ResourceGroup = resourceGroup,
+        Location = location, ServerName = name, ServerKind = 'Azure VM',
+        OperatingSystem = tostring(properties.storageProfile.osDisk.osType),
+        VMSize = tostring(properties.hardwareProfile.vmSize)
+),
+(
+    Resources
+    | where type =~ 'microsoft.hybridcompute/machines'
+    | project ResourceId = id, SubscriptionId = subscriptionId, ResourceGroup = resourceGroup,
+        Location = location, ServerName = name, ServerKind = 'Azure Arc machine',
+        OperatingSystem = tostring(properties.osName),
+        vCPUs = toint(properties.detectedProperties.logicalCoreCount)
+)
+| order by ServerName asc
