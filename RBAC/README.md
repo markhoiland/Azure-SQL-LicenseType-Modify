@@ -11,9 +11,8 @@ users who only need to:
 It deliberately does **not** grant delete rights on licenses, and does **not**
 grant write access to any other Arc SQL resource type (instances, data
 controllers, extensions, etc.). This makes it a much narrower alternative to
-assigning the built-in **Azure Connected Machine Resource Administrator**
-role (which grants broad control over the underlying Arc-enabled server,
-extensions, and identity — far more than is needed just to manage licensing).
+assigning the built-in **Contributor** role (which grants far more control
+than is needed just to manage licensing).
 
 > Use this role for licensing/FinOps administrators, SQL PAYG conversion
 > operators, or automation service principals that only need to read Arc SQL
@@ -155,10 +154,9 @@ access works end to end without requiring elevated permissions:
 ./AzureCLI/set-arc-sql-license-type.sh --tenant-id "<tenant_id>" --report-only
 ```
 
-If report-only mode succeeds but a write operation (for example,
-`-DisableAHUB` without `-ReportOnly`) fails with an authorization error,
-double-check the assignment scope covers the resource group containing the
-target Arc SQL Server license resources.
+If a `Microsoft.AzureArcData/sqlServerLicenses` create or update operation
+fails with an authorization error, double-check that the assignment scope
+covers the target Arc SQL Server license resource.
 
 ## Files in this folder
 
