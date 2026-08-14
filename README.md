@@ -107,7 +107,7 @@ Arc SQL licensing is independent of Azure SQL Database/MI `BasePrice` and SQL VM
 - **RBAC roles required**:
   - Azure SQL DB / MI: `SQL Server Contributor` or `Contributor`
   - SQL VMs: `SQL Virtual Machine Contributor` or `Contributor`
-  - Arc SQL: `Azure Connected Machine Resource Administrator`, or the least-privilege custom role in [`RBAC/Arc-SQL-License-Operator.json`](./RBAC/Arc-SQL-License-Operator.json) if you only need to view Arc SQL objects and manage licenses
+  - Arc SQL scripts: `Azure Connected Machine Resource Administrator`. The least-privilege custom role in [`RBAC/Arc-SQL-License-Operator.json`](./RBAC/Arc-SQL-License-Operator.json) supports direct `Microsoft.AzureArcData/sqlServerLicenses` operations only; it does not authorize the repository's Arc scripts.
 
 ### Azure CLI Scripts
 
