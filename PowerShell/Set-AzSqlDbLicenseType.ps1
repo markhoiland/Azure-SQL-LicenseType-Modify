@@ -158,7 +158,9 @@ function Connect-AzureContext {
         [switch] $UseManagedIdentity
     )
 
-    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or $PSPrivateMetadata.JobId
+    $privateMetadata = Get-Variable -Name PSPrivateMetadata -ValueOnly -ErrorAction SilentlyContinue
+    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or
+        ($null -ne $privateMetadata -and $null -ne $privateMetadata.JobId)
     if ($isAutomation) { $UseManagedIdentity = $true }
 
     $currentCtx = Get-AzContext -ErrorAction SilentlyContinue
@@ -284,6 +286,7 @@ foreach ($sub in $subscriptions) {
         continue
     }
 
+    $servers = @($servers)
     Write-Output "Found $($servers.Count) SQL server(s)."
 
     foreach ($server in $servers) {

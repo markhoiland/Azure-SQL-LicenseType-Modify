@@ -157,7 +157,9 @@ function Connect-AzureContext {
         [switch] $UseManagedIdentity
     )
 
-    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or $PSPrivateMetadata.JobId
+    $privateMetadata = Get-Variable -Name PSPrivateMetadata -ValueOnly -ErrorAction SilentlyContinue
+    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or
+        ($null -ne $privateMetadata -and $null -ne $privateMetadata.JobId)
     if ($isAutomation) { $UseManagedIdentity = $true }
 
     $currentCtx = Get-AzContext -ErrorAction SilentlyContinue
@@ -279,6 +281,7 @@ foreach ($sub in $subscriptions) {
         continue
     }
 
+    $sqlVMs = @($sqlVMs)
     Write-Output "Found $($sqlVMs.Count) SQL VM(s)."
 
     foreach ($vm in $sqlVMs) {
@@ -288,7 +291,7 @@ foreach ($sub in $subscriptions) {
             continue
         }
 
-        $currentLicense = $vm.SqlServerLicenseType
+        $currentLicense = $vm.LicenseType
         $needsUpdate = (($Force -or ($currentLicense -ne $LicenseType)) -and
             (-not $DisableAHUB -or $currentLicense -eq "AHUB"))
 
@@ -300,8 +303,8 @@ foreach ($sub in $subscriptions) {
             VMName              = $vm.Name
             CurrentLicenseType  = $currentLicense
             TargetLicenseType   = $LicenseType
-            SQLImageOffer       = $vm.SqlImageOffer
-            SQLImageSku         = $vm.SqlImageSku
+            SQLImageOffer       = $vm.Offer
+            SQLImageSku         = $vm.Sku
             Location            = $vm.Location
             Action              = if ($needsUpdate) { "Modify" } else { "NoChange" }
         }

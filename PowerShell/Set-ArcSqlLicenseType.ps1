@@ -184,7 +184,9 @@ function Connect-AzureContext {
         [switch] $UseManagedIdentity
     )
 
-    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or $PSPrivateMetadata.JobId
+    $privateMetadata = Get-Variable -Name PSPrivateMetadata -ValueOnly -ErrorAction SilentlyContinue
+    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or
+        ($null -ne $privateMetadata -and $null -ne $privateMetadata.JobId)
     if ($isAutomation) { $UseManagedIdentity = $true }
 
     # Use login V1 for compatibility

@@ -152,7 +152,9 @@ function Connect-AzureContext {
         [switch] $UseManagedIdentity
     )
 
-    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or $PSPrivateMetadata.JobId
+    $privateMetadata = Get-Variable -Name PSPrivateMetadata -ValueOnly -ErrorAction SilentlyContinue
+    $isAutomation = ($env:AZUREPS_HOST_ENVIRONMENT -like "AzureAutomation*") -or
+        ($null -ne $privateMetadata -and $null -ne $privateMetadata.JobId)
     if ($isAutomation) { $UseManagedIdentity = $true }
 
     $currentCtx = Get-AzContext -ErrorAction SilentlyContinue
@@ -274,6 +276,7 @@ foreach ($sub in $subscriptions) {
         continue
     }
 
+    $instances = @($instances)
     Write-Output "Found $($instances.Count) Managed Instance(s)."
 
     foreach ($instance in $instances) {
